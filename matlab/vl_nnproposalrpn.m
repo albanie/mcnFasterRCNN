@@ -1,14 +1,19 @@
 function y = vl_nnproposalrpn(x, b, imInfo, varargin)
 
+opts.fixed = [] ;
 opts.featStride = 16 ;
 opts.baseSize = 16 ;
-opts.minSize = 16
+opts.minSize = 16 ;
 opts.scales = [8, 16, 32] ;
 opts.ratios = [0.5, 1, 2] ;
 opts.postNMSTopN = 300 ;
 opts.preNMSTopN = 6000 ;
 opts.nmsThresh = 0.7 ;
 opts = vl_argparse(opts, varargin, 'nonrecursive') ;
+
+if ~isempty(opts.fixed)
+  y = opts.fixed ; return ;
+end
 
 anchors = generateAnchors(opts) ;
 numAnchors = size(anchors, 1) ;

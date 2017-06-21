@@ -1,12 +1,13 @@
 classdef ProposalRPN < dagnn.ElementWise
   properties
     featStride = 16
+    fixed = [] 
   end
   
   methods
     function outputs = forward(obj, inputs, params)
       outputs{1} = vl_nnproposalrpn(inputs{1}, inputs{2}, inputs{3}, ...
-                       'featStride', obj.featStride) ;
+                       'featStride', obj.featStride, 'fixed' , obj.fixed) ;
     end
     
     function [derInputs, derParams] = backward(obj, inputs, params, derOutputs)

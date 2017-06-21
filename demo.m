@@ -17,6 +17,7 @@ probs = squeeze(dag.vars(dag.getVarIndex('cls_prob')).value) ;
 deltas = squeeze(dag.vars(dag.getVarIndex('bbox_pred')).value) ;
 boxes = dag.vars(dag.getVarIndex('rois')).value(2:end,:)' ; % / im_info(3) ;
 
+
 % Visualize results for one class at a time
 for i = 2:numel(opts.classes)
   c = find(strcmp(opts.classes{i}, net.meta.classes.name)) ;
@@ -31,6 +32,7 @@ for i = 2:numel(opts.classes)
 
   sel_boxes = find(cls_dets(:,end) >= confThresh) ;
   if numel(sel_boxes) == 0, continue ; end
+    keyboard
 
   imo = bbox_draw(data/255,cls_dets(sel_boxes,:));
   title(sprintf('Detections for class ''%s''', opts.classes{i})) ;
