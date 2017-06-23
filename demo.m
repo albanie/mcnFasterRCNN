@@ -10,9 +10,7 @@ opts.classes = {'background', ...
     'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', ...
     'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'} ;
 
-confThresh = 0.8 ;
-nmsThresh = 0.3 ;
-
+confThresh = 0.8 ; nmsThresh = 0.3 ;
 probs = squeeze(dag.vars(dag.getVarIndex('cls_prob')).value) ;
 deltas = squeeze(dag.vars(dag.getVarIndex('bbox_pred')).value) ;
 boxes = dag.vars(dag.getVarIndex('rois')).value(2:end,:)' ; % / im_info(3) ;
@@ -36,8 +34,7 @@ for i = 2:numel(opts.classes)
 
   imo = bbox_draw(data/255,cls_dets(sel_boxes,:));
   title(sprintf('Detections for class ''%s''', opts.classes{i})) ;
-  zs_dispFig ;
-
+  if exist('zs_dispFig'), zs_dispFig ; end
 
   fprintf('Detections for category ''%s'':\n', opts.classes{i});
   for j=1:size(sel_boxes,1)

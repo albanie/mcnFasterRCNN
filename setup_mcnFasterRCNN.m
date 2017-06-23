@@ -4,8 +4,7 @@ function setup_mcnFasterRCNN()
 
   root = fileparts(mfilename('fullpath')) ;
   addpath(root) ;
-  addpath(root, [root '/matlab']) ;
+  addpath(root, [root '/matlab'], [root '/pascal'], [root '/core'] ) ;
 
-
-% temp
-faster_startup ;
+% temp fix
+faster_startup ; addpath([root '/scale_analysis']) ;

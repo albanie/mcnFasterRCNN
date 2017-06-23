@@ -11,11 +11,11 @@ for ii = 1:numel(dag.layers)
   end
 end
 
-p = dag.params(dag.getParamIndex('fc6_filter')).value ;
-p = reshape(p, 7,7,[], size(p,4)) ;
-p = permute(p, [2 1 3 4]) ;
-dag.params(dag.getParamIndex('fc6_filter')).value = p ;
-modPath = '/users/albanie/coding/libs/matconvnets/contrib-matconvnet/data/models-import/faster-rcnn-vggvd-pascal-mods.mat' ;
+%p = dag.params(dag.getParamIndex('fc6_filter')).value ;
+%p = reshape(p, 7,7,[], size(p,4)) ;
+%p = permute(p, [2 1 3 4]) ;
+%dag.params(dag.getParamIndex('fc6_filter')).value = p ;
+%modPath = '/users/albanie/coding/libs/matconvnets/contrib-matconvnet/data/models-import/faster-rcnn-vggvd-pascal-mods.mat' ;
 
-net = dag.saveobj() ;
-save(modPath, '-struct', 'net') ;
+%net = dag.saveobj() ;
+%save(modPath, '-struct', 'net') ;

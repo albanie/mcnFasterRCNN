@@ -15,6 +15,13 @@ if ~isempty(opts.fixed)
   y = opts.fixed ; return ;
 end
 
+% hack for parallel GPU issue
+%origType = class(x) ;
+%b = gather(b) ;
+%x = gather(x) ;
+fprintf('begin') ;drawnow('update') ;
+
+
 anchors = generateAnchors(opts) ;
 numAnchors = size(anchors, 1) ;
 
@@ -38,13 +45,22 @@ anchors = bsxfun(@plus, anchors2, shifts2) ;
 anchors3 = reshape(permute(anchors, [2 1 3]), [], 4) ;
 anchors = anchors3 ;
 
+fprintf('middle') ; 
+fprintf('size (b):') ;
+disp(size(b)) ; 
+fprintf('size (scores):') ;
+disp(size(scores)) ; drawnow('update') ;
+
 bboxDeltas = reshape(permute(b, [3 2 1]), 4, [])' ;
 scores = reshape(permute(scores, [3 2 1]), [], 1) ;
+fprintf('pre-inv') ; drawnow('update') ;
 
 proposals = bboxTransformInv(anchors, bboxDeltas) ;
+fprintf('post-inv') ; drawnow('update') ;
 
 % clip proposals
 proposals = clipProposals(proposals, imInfo) ;
+fprintf('post-clip') ; drawnow('update') ;
 
 keep = filterPropsoals(proposals, opts.minSize *imInfo(3)) ;
 proposals = proposals(keep,:) ;
@@ -55,12 +71,26 @@ if opts.preNMSTopN > 0, sIdx = sIdx(1:min(numel(sIdx), opts.preNMSTopN)) ; end
 proposals = proposals(sIdx,:) ;
 scores = scores(sIdx) ;
 
-keep = bbox_nms([proposals scores], opts.nmsThresh) ;
+fprintf('pre-gather') ; drawnow('update') ;
+cpuData = gather([proposals scores]) ; % faster on CPU
+fprintf('pre (nms):') ; drawnow('update') ;
+keep = bbox_nms(cpuData, opts.nmsThresh) ;
+fprintf('size (cpuData):') ; drawnow('update') ;
+disp(size(cpuData)) ; 
+fprintf('post-nms') ; drawnow('update') ;
+
 if opts.postNMSTopN > 0, keep = keep(1:min(numel(keep), opts.postNMSTopN)) ; end
+fprintf('post-list-crop') ; drawnow('update') ;
 proposals = proposals(keep,:) + 1 ; % fix indexing
 scores = scores(keep) ;
 imIds = ones(1, numel(keep)) ;
+fprintf('pre-vertcat') ; drawnow('update') ;
 y = vertcat(imIds, proposals') ;
+fprintf('end') ; drawnow('update') ;
+
+%if strcmp(origType, 'gpuArray') 
+  %y = gpuArray(y) ;
+%end
 
 % ---------------------------------------------------
 function keep = filterPropsoals(proposals, minSize)

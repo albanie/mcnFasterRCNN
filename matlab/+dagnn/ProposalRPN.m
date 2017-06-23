@@ -7,7 +7,7 @@ classdef ProposalRPN < dagnn.ElementWise
   methods
     function outputs = forward(obj, inputs, params)
       outputs{1} = vl_nnproposalrpn(inputs{1}, inputs{2}, inputs{3}, ...
-                       'featStride', obj.featStride, 'fixed' , obj.fixed) ;
+                       'featStride', obj.featStride, 'fixed', obj.fixed) ;
     end
     
     function [derInputs, derParams] = backward(obj, inputs, params, derOutputs)
