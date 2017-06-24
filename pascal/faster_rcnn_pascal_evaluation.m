@@ -9,15 +9,15 @@ opts.modelName = 'faster-rcnn-vggvd-pascal' ;
 opts.evalVersion = 'fast' ;
 opts.expDir = '' ; % preserve interface
 opts.optsStruct = struct() ; 
-opts.gpus = [2] ;
+opts.gpus = [2 3] ;
 opts.refreshCache = true ;
 opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
 opts = vl_argparse(opts, varargin) ;
 
 % load network and convert to autonn
 if isempty(opts.net), opts.net = faster_rcnn_zoo(opts.modelName) ; end
-layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
-opts.net = Net(layers{:}) ;
+%layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
+%opts.net = Net(layers{:}) ;
 
 % evaluation options
 opts.testset = 'test' ; 
@@ -26,7 +26,7 @@ opts.prefetch = false ;
 % configure batch opts
 batchOpts.batchSize = numel(opts.gpus) * 1 ;
 batchOpts.numThreads = numel(opts.gpus) * 4 ;
-batchOpts.use_vl_imreadjpeg = true ; 
+batchOpts.use_vl_imreadjpeg = 1 ; 
 batchOpts.maxScale = 1000 ;
 batchOpts.scale = 600 ;
 batchOpts.averageImage = opts.net.meta.normalization.averageImage ;
