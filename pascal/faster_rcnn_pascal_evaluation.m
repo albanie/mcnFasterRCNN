@@ -16,8 +16,8 @@ opts = vl_argparse(opts, varargin) ;
 
 % load network and convert to autonn
 if isempty(opts.net), opts.net = faster_rcnn_zoo(opts.modelName) ; end
-%layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
-%opts.net = Net(layers{:}) ;
+layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
+opts.net = Net(layers{:}) ;
 
 % evaluation options
 opts.testset = 'test' ; 

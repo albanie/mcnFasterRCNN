@@ -122,18 +122,16 @@ prepareGPUs(opts, true) ;
 p = struct() ;
 params.testIdx = testIdx ;
 
-%if numel(opts.gpus) <= 1
-   %state = processDetections(net, imdb, params, opts) ;
-   %p.cPreds = state.clsPreds ; p.bPreds = state.bboxPreds ;
-   %p.rois = state.rois ;
-%else
-if 1
+if numel(opts.gpus) <= 1
+   state = processDetections(net, imdb, params, opts) ;
+   p.cPreds = state.clsPreds ; p.bPreds = state.bboxPreds ;
+   p.rois = state.rois ;
+else
   topK = opts.modelOpts.maxPreds ; numClasses = opts.modelOpts.numClasses ;
   p.clsPreds = zeros(numClasses, topK, numel(testIdx), 'single') ; 
   p.bboxPreds = zeros(4 * numClasses, topK, numel(testIdx), 'single') ; 
   p.rois = zeros(4, topK, numel(testIdx), 'single') ; 
   startup ;  % fix for parallel oddities
-  %spmd(numel(opts.gpus))
   spmd
    state = processDetections(net, imdb, params, opts) ;
   end
@@ -155,10 +153,10 @@ sopts = vl_argparse(sopts, varargin) ;
 % benchmark speed
 num = 0 ; adjustTime = 0 ; stats.time = 0 ;
 stats.num = num ; start = tic ; testIdx = params.testIdx ;
-clsIdx = net.getVarIndex('cls_prob') ;
-bboxIdx = net.getVarIndex('bbox_pred') ;
-%roisIdx = net.getVarIndex('proposal') ;
-roisIdx = net.getVarIndex('rois') ;
+%clsIdx = net.getVarIndex('cls_prob') ;
+%bboxIdx = net.getVarIndex('bbox_pred') ;
+%%roisIdx = net.getVarIndex('proposal') ;
+%roisIdx = net.getVarIndex('rois') ;
 if ~isempty(opts.gpus), net.move('gpu') ; end
 
 
@@ -167,7 +165,7 @@ startIdx = labindex:numlabs:opts.batchOpts.batchSize ;
 idx = arrayfun(@(x) {x:opts.batchOpts.batchSize:numel(testIdx)}, startIdx) ;
 computedIdx = sort(horzcat(idx{:})) ;
 
-net.mode = 'test' ;
+%net.mode = 'test' ;
 
 % only the top K preds kept
 topK = opts.modelOpts.maxPreds ; numClasses = opts.modelOpts.numClasses ;
@@ -206,8 +204,8 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
 
   %net.setInputs('data', inputs{2}) ; 
   fprintf('pre-eval\n') ; drawnow('update') ;
-  %net.eval(inputs, 'forward') ;
-  net.eval(inputs) ;
+  net.eval(inputs, 'forward') ;
+  %net.eval(inputs) ;
   fprintf('post-eval\n') ; drawnow('update') ;
 
   storeIdx = offset:offset + numel(batch) - 1 ; offset = offset + numel(batch) ;
@@ -215,9 +213,12 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   %disp('out-value') ; disp(out) ; drawnow('update') ;
   %[cPreds, bPreds, rois] = out{:} ;
   disp('unpacking completed') ; drawnow('update') ;
-  cPreds = net.vars(clsIdx).value; 
-  bPreds = net.vars(bboxIdx).value ; 
-  rois = net.vars(roisIdx).value ; 
+  %cPreds = net.vars(clsIdx).value; 
+  %bPreds = net.vars(bboxIdx).value ; 
+  %rois = net.vars(roisIdx).value ; 
+  cPreds = net.getValue('cls_prob'); 
+  bPreds = net.getValue('bbox_pred') ; 
+  rois = net.getValue('proposal') ; 
   disp('picked the values') ; drawnow('update') ;
   state.clsPreds(:,1:size(cPreds,4),storeIdx) = gather(squeeze(cPreds)) ;
   state.bboxPreds(:,1:size(bPreds,4),storeIdx) = gather(squeeze(bPreds)) ;
