@@ -162,34 +162,7 @@ cd(currentDir) ;
 function displayPascalResults(modelName, aps, opts)
 % ---------------------------------------------------------------------------
 
-fprintf('\n============\n') ;
+fprintf('============\n') ;
 fprintf(sprintf('%s set performance of %s:', opts.testset, modelName)) ;
 fprintf('%.1f (mean ap) \n', 100 * mean(aps)) ;
-fprintf('\n============\n') ;
-
-% display all relevant experiments
-cacheRoot = fileparts(fileparts(opts.cacheOpts.evalCacheDir)) ;
-cacheDirs = extractCacheDirs(cacheRoot) ;
-
-% move current experiment to head
-pos = find(strcmp(cacheDirs, opts.cacheOpts.evalCacheDir)) ;
-tmp = cacheDirs{1} ; cacheDirs{1} = cacheDirs{pos} ; cacheDirs{pos} = tmp ;
-
-% save expTag (this lets us have multiple tags per experiment)
-meta = struct() ;
-if ~isfield(opts.net.meta, 'expTag')
-  opts.net.meta.expTag = 'all' ;
-end
-path = fullfile(opts.cacheOpts.evalCacheDir, opts.net.meta.expTag) ;
-if ~exist(fileparts(path), 'dir')
-  mkdir(fileparts(path)) ;
-end
-save(path, '-struct', 'meta') ;
-printPascalResults({opts.cacheOpts.evalCacheDir}, 'orientation', 'portrait') ;
-
-% ------------------------------------------
-function cacheDirs = extractCacheDirs(root)
-% ------------------------------------------
-files = ignoreSystemFiles(dir(fullfile(root, '*'))) ;
-names = {files.name} ;
-cacheDirs = cellfun(@(x) {fullfile(root, x, 'eval_cache')}, names) ;
+fprintf('============\n') ;

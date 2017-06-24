@@ -137,7 +137,7 @@ else
   end
   for i = 1:numel(opts.gpus)
     state_ = state{i} ;
-    p.clsPreds(:,:,state_.computedIdx) = state_.clsPreds ;
+    p.cPreds(:,:,state_.computedIdx) = state_.clsPreds ;
     p.bPreds(:,:,state_.computedIdx) = state_.bboxPreds ;
     p.rois(:,:,state_.computedIdx) = state_.rois ;
   end
