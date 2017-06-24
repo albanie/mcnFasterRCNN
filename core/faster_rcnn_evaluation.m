@@ -183,14 +183,14 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   batchEnd = min(t + opts.batchOpts.batchSize - 1, numel(testIdx)) ;
   batch = testIdx(batchStart : numlabs : batchEnd) ;
   num = num + numel(batch) ;
-  fprintf('pre-batch check\n') ; drawnow('update') ;
+  %fprintf('pre-batch check\n') ; drawnow('update') ;
   if numel(batch) == 0, continue ; end
-  fprintf('post-batch check\n') ; drawnow('update') ;
+  %fprintf('post-batch check\n') ; drawnow('update') ;
   args = {imdb, batch, opts} ;
   if ~isempty(sopts.scale), args = {args{:}, sopts.scale} ; end 
-  fprintf('post-args check\n') ; drawnow('update') ;
-  fprintf('processing %d\n', batch(1)) ; drawnow('update') ;
-  disp('args:') ; disp(args) ; drawnow('update') ;
+  %fprintf('post-args check\n') ; drawnow('update') ;
+  %fprintf('processing %d\n', batch(1)) ; drawnow('update') ;
+  %disp('args:') ; disp(args) ; drawnow('update') ;
   inputs = opts.modelOpts.get_eval_batch(args{:}) ;
 
   if opts.prefetch
@@ -203,30 +203,30 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   end
 
   %net.setInputs('data', inputs{2}) ; 
-  fprintf('pre-eval\n') ; drawnow('update') ;
+  %fprintf('pre-eval\n') ; drawnow('update') ;
   net.eval(inputs, 'forward') ;
   %net.eval(inputs) ;
-  fprintf('post-eval\n') ; drawnow('update') ;
+  %fprintf('post-eval\n') ; drawnow('update') ;
 
   storeIdx = offset:offset + numel(batch) - 1 ; offset = offset + numel(batch) ;
   %out = net.vars([clsIdx bboxIdx roisIdx]) ; 
   %disp('out-value') ; disp(out) ; drawnow('update') ;
   %[cPreds, bPreds, rois] = out{:} ;
-  disp('unpacking completed') ; drawnow('update') ;
+  %disp('unpacking completed') ; drawnow('update') ;
   %cPreds = net.vars(clsIdx).value; 
   %bPreds = net.vars(bboxIdx).value ; 
   %rois = net.vars(roisIdx).value ; 
   cPreds = net.getValue('cls_prob'); 
   bPreds = net.getValue('bbox_pred') ; 
   rois = net.getValue('proposal') ; 
-  disp('picked the values') ; drawnow('update') ;
+  %disp('picked the values') ; drawnow('update') ;
   state.clsPreds(:,1:size(cPreds,4),storeIdx) = gather(squeeze(cPreds)) ;
   state.bboxPreds(:,1:size(bPreds,4),storeIdx) = gather(squeeze(bPreds)) ;
   state.rois(:,1:size(rois,2),storeIdx) = gather(rois(2:end,:)) ;
   time = toc(start) + adjustTime ; batchTime = time - stats.time ;
   stats.num = num ; stats.time = time ; currentSpeed = batchSize / batchTime ;
   averageSpeed = (t + batchSize - 1) / time ;
-  fprintf('post2-eval\n') ; drawnow('update') ;
+  %fprintf('post2-eval\n') ; drawnow('update') ;
 
   if t == 3*opts.batchOpts.batchSize + 1
       % compensate for the first three iterations, which are outliers
