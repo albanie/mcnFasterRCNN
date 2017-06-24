@@ -5,7 +5,6 @@ bopts = vl_argparse(bopts, varargin) ;
 
 assert(numel(batch) <= 1, 'batch size <= 1 for RPN testing') ;
 
-fprintf('processing batch len: %d \n', numel(batch)) ; drawnow('update') ;
 if numel(batch) == 0, batchData = {'data', [], 'imInfo', []} ; return ; end
 
 imMean = opts.batchOpts.averageImage ; % [123, 117, 104]
@@ -18,8 +17,6 @@ sc = opts.batchOpts.scale ; maxSc = opts.batchOpts.maxScale ;
 factor = max(sc ./ imsz) ; minScaleFactor = sc ./ min(imsz) ;
 if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
 newSz = factor .* imsz ; imInfo = [ newSz minScaleFactor ] ;
-
-fprintf('processing get batch \n', batch(1)) ; drawnow('update') ;
 
 if opts.batchOpts.use_vl_imreadjpeg
   args = {imPaths, ...
@@ -45,7 +42,6 @@ if opts.batchOpts.use_vl_imreadjpeg
     data = out{1} ; 
   end
 else
-  %imMean = reshape(imMean, 1, 1, 3) ;
   im = single(imread(imPaths{1})) ;
   data = bsxfun(@minus, im, imMean) ;
 
