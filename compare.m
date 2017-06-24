@@ -3,7 +3,7 @@ featPath = fullfile(featDir, 'blobs-VGG16.mat') ;
 feats = load(featPath) ;
 
 % temp fix
-if 0  % chicken dinner
+if 1  % chicken dinner
   p = dag.params(dag.getParamIndex('fc6_filter')).value ;
   p = reshape(p, 7,7,[], size(p,4)) ;
   p = permute(p, [2 1 3 4]) ;

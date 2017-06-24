@@ -16,11 +16,10 @@ if ~isempty(opts.fixed)
 end
 
 % hack for parallel GPU issue
-%origType = class(x) ;
-%b = gather(b) ;
-%x = gather(x) ;
+origType = class(x) ;
+b = gather(b) ;
+x = gather(x) ;
 fprintf('begin') ;drawnow('update') ;
-
 
 anchors = generateAnchors(opts) ;
 numAnchors = size(anchors, 1) ;
@@ -88,9 +87,9 @@ fprintf('pre-vertcat') ; drawnow('update') ;
 y = vertcat(imIds, proposals') ;
 fprintf('end') ; drawnow('update') ;
 
-%if strcmp(origType, 'gpuArray') 
-  %y = gpuArray(y) ;
-%end
+if strcmp(origType, 'gpuArray') 
+  y = gpuArray(y) ;
+end
 
 % ---------------------------------------------------
 function keep = filterPropsoals(proposals, minSize)

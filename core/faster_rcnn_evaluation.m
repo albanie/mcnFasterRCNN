@@ -27,6 +27,8 @@ end
 
 testIdx = find(imdb.images.set == setLabel) ;
 
+net.mode = 'test' ;
+
 % retrieve results from cache if possible
 results = checkCache(opts, net, imdb, testIdx) ;
 opts.dataOpts.displayResults(opts.modelName, results, opts) ;
@@ -128,14 +130,17 @@ params.testIdx = testIdx ;
    %p.rois = state.rois ;
 %else
 if 1
-    topK = opts.modelOpts.maxPreds ; numClasses = opts.modelOpts.numClasses ;
+    topK = opts.modelOpts.maxPreds ; 
+    numClasses = opts.modelOpts.numClasses ;
     p.clsPreds = zeros(numClasses, topK, numel(testIdx), 'single') ; 
     p.bboxPreds = zeros(4 * numClasses, topK, numel(testIdx), 'single') ; 
     p.rois = zeros(4, topK, numel(testIdx), 'single') ; 
-    startup ;  % fix for parallel oddities
+    %startup ;  % fix for parallel oddities
+
     spmd
        state = processDetections(net, imdb, params, opts) ;
     end
+
     for i = 1:numel(opts.gpus)
         state_ = state{i} ;
         p.clsPreds(:,:,state_.computedIdx) = state_.clsPreds ;
@@ -156,7 +161,10 @@ num = 0 ; adjustTime = 0 ; stats.time = 0 ;
 stats.num = num ; start = tic ; testIdx = params.testIdx ;
 clsIdx = net.getVarIndex('cls_prob') ;
 bboxIdx = net.getVarIndex('bbox_pred') ;
-roisIdx = net.getVarIndex('proposal') ;
+roisIdx = net.getVarIndex('rois') ;
+net.vars(clsIdx).precious = 1 ;
+net.vars(bboxIdx).precious = 1 ;
+net.vars(roisIdx).precious = 1 ;
 if ~isempty(opts.gpus), net.move('gpu') ; end
 
 
@@ -166,11 +174,15 @@ idx = arrayfun(@(x) {x:opts.batchOpts.batchSize:numel(testIdx)}, startIdx) ;
 computedIdx = sort(horzcat(idx{:})) ;
 
 % only the top K preds kept
-topK = opts.modelOpts.maxPreds ; numClasses = opts.modelOpts.numClasses ;
+topK = opts.modelOpts.maxPreds ; 
+numClasses = opts.modelOpts.numClasses ;
+
 state.clsPreds = zeros(numClasses, topK, numel(computedIdx), 'single') ; 
 state.bboxPreds = zeros(4 * numClasses, topK, numel(computedIdx), 'single') ; 
 state.rois = zeros(4, topK, numel(computedIdx), 'single') ; 
-state.computedIdx = computedIdx ; offset = 1 ;
+state.computedIdx = computedIdx ; 
+
+offset = 1 ;
 
 for t = 1:opts.batchOpts.batchSize:numel(testIdx) 
   progress = fix((t-1) / opts.batchOpts.batchSize) + 1 ; % display progress
@@ -182,7 +194,7 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   batch = testIdx(batchStart : numlabs : batchEnd) ;
   num = num + numel(batch) ;
   fprintf('pre-batch check\n') ; drawnow('update') ;
-  if numel(batch) == 0, continue ; end
+  if numel(batch) == 0, error('empty batch') ; continue ; end
   fprintf('post-batch check\n') ; drawnow('update') ;
   args = {imdb, batch, opts} ;
   if ~isempty(sopts.scale), args = {args{:}, sopts.scale} ; end 
@@ -202,16 +214,21 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
 
   %net.setInputs('data', inputs{2}) ; 
   fprintf('pre-eval\n') ; drawnow('update') ;
-  net.eval(inputs, 'forward') ;
+  net.eval(inputs) ;
+  %net.eval(inputs, 'forward') ;
+  %net.vars(clsIdx).value =  zeros(1, 1, 21,300, 'single') ;
+  %net.vars(bboxIdx).value =  zeros(1, 1, 84,300, 'single') ;
+  %net.vars(roisIdx).value = zeros(5, 300, 'single') ;
   fprintf('post-eval\n') ; drawnow('update') ;
 
   storeIdx = offset:offset + numel(batch) - 1 ; offset = offset + numel(batch) ;
-  out = net.vars([clsIdx bboxIdx roisIdx]) ; 
-  disp('out-value') ; disp(out) ; drawnow('update') ;
-  [cPreds, bPreds, rois] = out{:} ;
-  disp('unpacking completed') ; drawnow('update') ;
-  %cPreds = net.vars{clsIdx} ; bPreds = net.vars{bboxIdx} ; 
-  %rPreds = net.vars{roisIdx} ; 
+  %out = net.vars([clsIdx bboxIdx roisIdx]) ; 
+  %disp('out-value') ; disp(out) ; drawnow('update') ;
+  %[cPreds, bPreds, rois] = out{:} ;
+  %disp('unpacking completed') ; drawnow('update') ;
+  cPreds = net.vars(clsIdx).value ; 
+  bPreds = net.vars(bboxIdx).value ; 
+  rois = net.vars(roisIdx).value ; 
   state.clsPreds(:,1:size(cPreds,4),storeIdx) = gather(squeeze(cPreds)) ;
   state.bboxPreds(:,1:size(bPreds,4),storeIdx) = gather(squeeze(bPreds)) ;
   state.rois(:,1:size(rois,2),storeIdx) = gather(rois(2:end,:)) ;

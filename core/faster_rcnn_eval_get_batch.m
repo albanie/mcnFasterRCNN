@@ -45,18 +45,9 @@ if opts.batchOpts.use_vl_imreadjpeg
     data = out{1} ; 
   end
 else
-  error('nah') ;
-  data = single(zeros([opts.batchOpts.imageSize(1:2) 3 numel(batch)])) ;
-  imMean = reshape(imMean, 1, 1, 3) ;
-  for i = 1:numel(imPaths) 
-    im = single(imread(imPaths{i})) ;
-
-    if ~opts.fixedSizeInputs
-      im = imresize(im, opts.batchOpts.imageSize(1:2), ...
-      'method', 'bicubic') ;
-    end
-    data(:,:,:,i) = bsxfun(@minus, im, imMean) ;
-  end
+  %imMean = reshape(imMean, 1, 1, 3) ;
+  im = single(imread(imPaths{1})) ;
+  data = bsxfun(@minus, im, imMean) ;
 
   if useGpu
     data = gpuArray(data) ;
