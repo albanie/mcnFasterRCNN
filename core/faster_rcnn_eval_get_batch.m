@@ -1,4 +1,4 @@
-function batchData = ssd_eval_get_batch(imdb, batch, opts, varargin)
+function batchData = faster_rcnn_eval_get_batch(imdb, batch, opts, varargin)
 
 bopts.prefetch = false ;
 bopts = vl_argparse(bopts, varargin) ;
@@ -13,10 +13,10 @@ imNames = imdb.images.name(batch) ;
 imPathTemplates = imdb.images.paths(batch) ;
 imPaths = cellfun(@(x,y) {sprintf(x, y)}, imPathTemplates, imNames) ;
 imsz = double(imdb.images.imageSizes{batch}) ;
-sc = opts.batchOpts.scale ; maxSc = opts.batchOpts.maxScale ; 
-factor = max(sc ./ imsz) ; minScaleFactor = sc ./ min(imsz) ;
+maxSc = opts.batchOpts.maxScale ; 
+factor = max(opts.batchOpts.scale ./ imsz) ; 
 if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-newSz = factor .* imsz ; imInfo = [ round(newSz) minScaleFactor ] ;
+newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
 
 if opts.batchOpts.use_vl_imreadjpeg
   %imMean = permute(imMean, [1 3 2]) ;

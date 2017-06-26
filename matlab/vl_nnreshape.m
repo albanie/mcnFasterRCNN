@@ -29,11 +29,7 @@ function y = vl_nnreshape(x, shape, varargin)
 %
 % This file is part of the VLFeat library and is made available under
 % the terms of the BSD license (see the COPYING file).
-%fprintf('reshaping\n') ;
-
-[opts, dzdy] = vl_argparsepos(struct(), varargin) ;
-
-%fprintf('pre-reshape') ; drawnow('update') ;
+[~, dzdy] = vl_argparsepos(struct(), varargin) ;
 
 if isnumeric(shape) % apply caffe style conventions if needed
   shape_ = num2cell(shape) ;
@@ -49,5 +45,3 @@ if isempty(dzdy)
 else
     y = reshape(dzdy, size(x)) ;
 end
-%fprintf('post-reshape') ; drawnow('update') ;
-
