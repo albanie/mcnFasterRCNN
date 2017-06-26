@@ -18,33 +18,18 @@ end
 
 anchors = generateAnchors(opts) ;
 numAnchors = size(anchors, 1) ;
-
-% Each spatial element of the input layer `im` produces a corresponding
-% prior box in the input image. We assume that every image in the
-% batch is the same size so that the prior boxes can be duplicated
-% across all input images. 
 layerWidth = size(x, 2) ; layerHeight = size(x, 1) ;
-imgWidth = imInfo(2) ; imgHeight = imInfo(1) ;
-
 scores = x(:,:,numAnchors+1:end) ;
-
-shiftX = [0:layerWidth-1] .* double(opts.featStride) ;
-shiftY = [0:layerHeight-1] .* double(opts.featStride) ;
+shiftX = (0:layerWidth-1) .* double(opts.featStride) ;
+shiftY = (0:layerHeight-1) .* double(opts.featStride) ;
 [shiftX, shiftY] = meshgrid(shiftX, shiftY) ;
 shiftX_T = shiftX' ; shiftY_T = shiftY' ;
 shifts = [shiftX_T(:)  shiftY_T(:) shiftX_T(:)  shiftY_T(:) ] ;
-shifts2 = reshape(shifts, [], 1, 4) ;
-anchors2 = permute(anchors, [3 1 2]) ;
-anchors = bsxfun(@plus, anchors2, shifts2) ;
-anchors3 = reshape(permute(anchors, [2 1 3]), [], 4) ;
-anchors = anchors3 ;
-
+anchors = bsxfun(@plus, permute(anchors, [3 1 2]), reshape(shifts, [], 1, 4)) ;
+anchors = reshape(permute(anchors, [2 1 3]), [], 4) ;
 bboxDeltas = reshape(permute(b, [3 2 1]), 4, [])' ;
 scores = reshape(permute(scores, [3 2 1]), [], 1) ;
-
 proposals = bboxTransformInv(anchors, bboxDeltas) ;
-
-% clip proposals
 proposals = clipProposals(proposals, imInfo) ;
 
 if opts.filterSmallProposals 
@@ -56,19 +41,15 @@ if opts.filterSmallProposals
   proposals = proposals(keep,:) ;
   scores = scores(keep) ;
 end
-
 [~,sIdx] = sort(scores, 'descend') ;
 
-if opts.preNMSTopN > 0, sIdx = sIdx(1:min(numel(sIdx), opts.preNMSTopN)) ; end
-proposals = proposals(sIdx,:) ;
-scores = scores(sIdx) ;
-
+if opts.preNMSTopN, sIdx = sIdx(1:min(numel(sIdx), opts.preNMSTopN)) ; end
+proposals = proposals(sIdx,:) ; scores = scores(sIdx) ;
 cpuData = gather([proposals scores]) ; % faster on CPU
 keep = bbox_nms(cpuData, opts.nmsThresh) ;
 
-if opts.postNMSTopN > 0, keep = keep(1:min(numel(keep), opts.postNMSTopN)) ; end
-proposals = proposals(keep,:) + 1 ; % fix indexing
-scores = scores(keep) ;
+if opts.postNMSTopN, keep = keep(1:min(numel(keep), opts.postNMSTopN)) ; end
+proposals = proposals(keep,:) + 1 ; % fix indexing expected by ROI layer
 imIds = ones(1, numel(keep)) ;
 y = vertcat(imIds, proposals') ;
 
