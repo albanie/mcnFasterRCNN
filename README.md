@@ -18,6 +18,6 @@ This code is based on the `py-caffe` implementation
 
 The model currently only operates in test mode, using the pre-trained models 
 released with the caffe code which have been imported into matconvnet and 
-can be downloaded [here]().
+can be downloaded [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models).
 
 Training code will be added when the original experiments have been reproduced.
