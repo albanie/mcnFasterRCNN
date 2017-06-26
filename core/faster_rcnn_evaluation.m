@@ -27,8 +27,6 @@ end
 
 testIdx = find(imdb.images.set == setLabel) ;
 
-net.mode = 'test' ;
-
 % retrieve results from cache if possible
 results = checkCache(opts, net, imdb, testIdx) ;
 opts.dataOpts.displayResults(opts.modelName, results, opts) ;
@@ -64,33 +62,58 @@ cPreds = p.cPreds ;
 bPreds = p.bPreds ; 
 rois = p.rois ; 
 
-for c = 1:numClasses - 1 % don't store bg 
-  fprintf('extracting predictions for %s\n', imdb.meta.classes{c}) ;
-  for p = 1:numel(testIdx)
+for p = 1:numel(testIdx)
 
+  imsz = single(imdb.images.imageSizes{testIdx(p)}) ;
+  maxSc = opts.batchOpts.maxScale ; 
+  factor = max(opts.batchOpts.scale ./ imsz) ; 
+  if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
+  newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
+
+  % find predictions for current image
+  cPreds_ = cPreds(:,:,p) ; 
+  bPreds_ = bPreds(:,:,p)' ; 
+
+  rois_ = rois(:,:,p)' ; 
+  keep = find(rois_(:,4) ~= 0) ; % drop unused RoIs
+  rois_ = rois_(keep,:) ; 
+  bPreds_ = bPreds_(keep,:) ; 
+  cPreds_ = cPreds_(:,keep) ;
+  rois_ = rois_ - 1 ; % undo offset required by roipool
+  boxes = rois_ / factor ;
+  cBoxes = bboxTransformInv(boxes, bPreds_) ;
+  cBoxes = clipBoxes(cBoxes, imsz) ;
+
+  numKept = 0 ;
+
+  for c = 1:numClasses - 1 % don't store bg 
     target = c + 1 ; % add offset for bg class
 
-    % find predictions for current image
-    cPreds_ = cPreds(target,:,p) ; 
-    bPreds_ = bPreds((target-1)*4+1:target*4,:,p)' ; rois_ = rois(:,:,p)' ;
-    cboxes = bbox_transform_inv(rois_, bPreds_);
-    cls_dets = [cboxes cPreds_'] ;
+    % compute regressed proposals
+    tBoxes = cBoxes(:,(target-1)*4+1:(target)*4) ;
+    tScores = cPreds_(target,:)' ;
+    cls_dets = [tBoxes tScores] ;
+    
+    % drop preds below threshold
+    keep = find(cls_dets(:,end) >= opts.modelOpts.confThresh) ;
+    cls_dets = cls_dets(keep,:) ;
+    if ~numel(keep), continue ; end
+
+    % TODO(samuel): Move last round of NMS into the computePredictions 
+    % function for a fair timing benchmark 
+    % heuristic: keep a fixed number of dets per class per image before nms
+    [~,si] = sort(cls_dets(:,5),'descend') ;
+    cls_dets = cls_dets(si,:) ;
+    numKeep = min(size(cls_dets,1),opts.modelOpts.maxPredsPerImage) ;
+    cls_dets = cls_dets(1:numKeep,:) ;
+
     keep = bbox_nms(cls_dets, opts.modelOpts.nmsThresh) ;
     cls_dets = cls_dets(keep, :) ;
-    sel_boxes = find(cls_dets(:,end) >= opts.modelOpts.confThresh) ;
 
-
-    % clip predictions to fall in image and scale the 
-    % bounding boxes from [0,1] to absolute pixel values
-    if sel_boxes
-      imsz = single(imdb.images.imageSizes{testIdx(p)}) ;
-      minScaleFactor = opts.batchOpts.scale ./ min(imsz) ;
-      pBoxes = cls_dets(sel_boxes,1:4) / minScaleFactor ; 
-      pScores = cls_dets(sel_boxes,5) ;
-
-      % clip predicitons
-      pBoxes = min(max(pBoxes, 0), repmat(imsz([2 1]), size(pBoxes,1), 2)) ;
-
+    if numel(keep)
+      numKept = numKept + numel(keep) ;
+      pBoxes = cls_dets(:,1:4) + 1 ; % fix offset
+      pScores = cls_dets(:,5) ;
       switch opts.dataOpts.resultsFormat
         case 'minMax'
           ; % do nothing
@@ -106,14 +129,91 @@ for c = 1:numClasses - 1 % don't store bg
       bboxes{c} = vertcat(bboxes{c}, pBoxes) ;
       imageIds{c} = vertcat(imageIds{c}, repmat({pId}, size(pScores))) ; 
     end
+  end
 
-    if mod(p,100) == 1, fprintf('extracting %d/%d\n', p, numel(testIdx)) ; end
+  %if numKept > opts.modelOpts.maxPredsPerImage
+    %keyboard
+  %end
+  if mod(p,100) == 1, fprintf('extracting %d/%d\n', p, numel(testIdx)) ; end
+end
+
+% cheat:
+%testIdx = find(imdb.images.set == 3) ;
+if 0 
+  caffePreds = load('/tmp/stored_dets.mat') ;
+  useCaffe = 0 ;
+  if useCaffe 
+    zz = load(fullfile(vl_rootnn,'data/pascal/standard_imdb/imdb.mat')) ;
+    %testIdx = find(zz.images.set == 3) ;
+  end
+
+  keep = 1:numel(testIdx) ;
+
+  caffeAll = caffePreds.all_boxes(:,keep) ;
+  caffeIds = cell(size(imageIds)) ;
+  caffeBoxes = cell(size(bboxes)) ;
+  caffeScores = cell(size(scores)) ;
+
+  for c = 1:numClasses - 1
+    caffePreds_ = caffeAll(c+1,:) ;
+    caffeIds_ = cellfun(@(x,y) {repmat({imdb.images.name{y}}, size(x,1), 1)}, caffePreds_, num2cell(testIdx)) ;
+    scoredBoxes = vertcat(caffePreds_{:}) ;
+    caffeIds{c} = vertcat(caffeIds_{:}) ; 
+    caffeBoxes{c} = scoredBoxes(:,1:4) ;
+    caffeScores{c} = scoredBoxes(:,5) ;
+    % tmp
+    cb = bboxCoder(caffeBoxes{c}, 'MinMax', 'MinWH') ;
+    mb = bboxCoder(bboxes{c}, 'MinMax', 'MinWH') ;
+    o = bboxOverlapRatio(cb, mb) ;
+    imageIds_ = imageIds{c} ;
+    numC = size(caffeIds{c}, 1) ;  numM = size(imageIds_, 1) ;
+    fprintf('caffe: %d vs mcn: %d\n', numC, numM) ;
+
+    %if numC ~= size(imageIds_, 1)
+      %keyboard 
+    %end
+
+  end
+
+  if useCaffe
+    imageIds = caffeIds ;
+    bboxes = caffeBoxes ;
+    scores = caffeScores ;
   end
 end
 
 decodedPreds.imageIds = imageIds ;
 decodedPreds.scores = scores ;
 decodedPreds.bboxes = bboxes ;
+
+% ------------------------------------------------
+function predBoxes = bboxTransformInv(boxes, deltas)
+% ------------------------------------------------
+W = boxes(:,3) - boxes(:,1) + 1 ;
+H = boxes(:,4) - boxes(:,2) + 1 ;
+ctrX = boxes(:,1) + 0.5 * W ;
+ctrY = boxes(:,2) + 0.5 * H ;
+
+dX = deltas(:,1:4:end) ; dY = deltas(:,2:4:end) ;
+dW = deltas(:,3:4:end) ; dH = deltas(:,4:4:end) ;
+predCtrX = bsxfun(@plus, bsxfun(@times, dX,W), ctrX) ;
+predCtrY = bsxfun(@plus, bsxfun(@times, dY,H), ctrY) ;
+predW = bsxfun(@times, exp(dW), W) ;
+predH = bsxfun(@times, exp(dH), H) ;
+
+predBoxes = zeros(size(deltas)) ;
+predBoxes(:,1:4:end) = predCtrX - 0.5 * predW ;
+predBoxes(:,2:4:end) = predCtrY - 0.5 * predH ;
+predBoxes(:,3:4:end) = predCtrX + 0.5 * predW ;
+predBoxes(:,4:4:end) = predCtrY + 0.5 * predH ;
+
+% -------------------------------------
+function boxes = clipBoxes(boxes, imsz)
+% -------------------------------------
+boxes(:,1:4:end) = max(min(boxes(:,1:4:end),imsz(2)-1),0);
+boxes(:,2:4:end) = max(min(boxes(:,2:4:end),imsz(1)-1),0);
+boxes(:,3:4:end) = max(min(boxes(:,3:4:end),imsz(2)-1),0);
+boxes(:,4:4:end) = max(min(boxes(:,4:4:end),imsz(1)-1),0);
 
 % -------------------------------------------------------
 function p = computePredictions(net, imdb, testIdx, opts) 
@@ -201,6 +301,7 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   cPreds = net.getValue('cls_prob'); 
   bPreds = net.getValue('bbox_pred') ; 
   rois = net.getValue('proposal') ; 
+
   state.clsPreds(:,1:size(cPreds,4),storeIdx) = gather(squeeze(cPreds)) ;
   state.bboxPreds(:,1:size(bPreds,4),storeIdx) = gather(squeeze(bPreds)) ;
   state.rois(:,1:size(rois,2),storeIdx) = gather(rois(2:end,:)) ;

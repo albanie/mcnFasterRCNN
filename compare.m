@@ -2,20 +2,41 @@ featDir = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/feats') ;
 featPath = fullfile(featDir, 'blobs-VGG16.mat') ;
 feats = load(featPath) ;
 
+imMinusPath = fullfile(featDir, 'im-minus.mat') ;
+imMinusData = load(imMinusPath) ;
+imMinus = imMinusData.im_minus(:,:, [3 2 1]) ;
+
 % temp fix
-if 1  % chicken dinner
-  p = dag.params(dag.getParamIndex('fc6_filter')).value ;
-  p = reshape(p, 7,7,[], size(p,4)) ;
-  p = permute(p, [2 1 3 4]) ;
-  dag.params(dag.getParamIndex('fc6_filter')).value = p ;
-end
+%if 0  % chicken dinner
+  %p = dag.params(dag.getParamIndex('fc6_filter')).value ;
+  %p = reshape(p, 7,7,[], size(p,4)) ;
+  %p = permute(p, [2 1 3 4]) ;
+  %dag.params(dag.getParamIndex('fc6_filter')).value = p ;
+%end
 
 %dag.layers(dag.getLayerIndex('roi_pool5'))
 %dag.layers(dag.getLayerIndex('roi_pool5')).block.flatten = 0 ;
+%imMinus = permute(imMinusData.im_minus, [3 4 2 1]) ;
+checkPreprocessing = 1 ;
 
-data = permute(feats.data, [3 4 2 1]) ;
-data = data(:,:, [3 2 1]) ;
-im_info = feats.im_info ;
+if checkPreprocessing
+  imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/python/000067.jpg') ;
+  im = single(imread(imPath)) ;
+
+  sz = double(size(im)) ; imsz = sz(1:2) ;
+  sc = 600 ; maxSc = 1000 ; 
+  factor = max(sc ./ imsz) ; minScaleFactor = sc ./ min(imsz) ;
+  if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
+  newSz = factor .* imsz ; im_info = [ round(newSz) minScaleFactor ] ;
+  imMean = dag.meta.normalization.averageImage ;
+  im = bsxfun(@minus, im, imMean) ;
+  data = imresize(im, factor, 'bilinear') ;
+else
+  data = permute(feats.data, [3 4 2 1]) ;
+  data = data(:,:, [3 2 1]) ;
+  im_info = feats.im_info ;
+end
+
 dag.conserveMemory = 0 ;
 dag.eval({'data', data, 'im_info', im_info}) ;
 
@@ -48,6 +69,16 @@ for ii = 1:numel(dag.vars)
   x = dag.vars(dag.getVarIndex(xName)).value ;
   x_ = feats.(xName_) ;
   x_ = permute(x_, [3 4 2 1]) ;
+
+  if strcmp(xName, 'rois') 
+    x_ = squeeze(x_) ; x_ = x_(2:end,:) ; % remove the image index
+    x = x(2:end,:) - 1 ; % fix off by one in MATLAB
+    keyboard
+  end
+
+  if strcmp(xName, 'bbox_pred') 
+    keyboard
+  end
   diff = x(:) - x_(:) ;
   fprintf('%d: %s vs %s\n', ii, xName, xName_) ;
   fprintf('diff: %g\n', mean(abs(diff))) ;

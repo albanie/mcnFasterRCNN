@@ -11,8 +11,7 @@
 Demo script showing detections in sample images.
 
 See README.md for installation instructions before running.
-"""
-# ----------------------------------
+""" # ----------------------------------
 #                             bugfix
 # ----------------------------------
 
@@ -51,9 +50,10 @@ from fast_rcnn.bbox_transform import clip_boxes, bbox_transform_inv
 from zsvision.zs_iterm import zs_dispFig
 
 vl_rootnn = os.path.expanduser('~/coding/libs/matconvnets/contrib-matconvnet')
-im_path = pjoin(vl_rootnn, 'contrib/mcnFasterRCNN/python', '000456.jpg')
+im_path = pjoin(vl_rootnn, 'contrib/mcnFasterRCNN/python', '000067.jpg')
 net_name = 'VGG16' ; fname = 'blobs-{}.mat'.format(net_name)
 blob_save_path = pjoin(vl_rootnn, 'contrib/mcnFasterRCNN/feats', fname)
+im_minus_path = pjoin(vl_rootnn, 'contrib/mcnFasterRCNN/feats', 'im-minus.mat')
 
 CLASSES = ('__background__',
            'aeroplane', 'bicycle', 'bird', 'boat',
@@ -75,6 +75,7 @@ def _get_image_blob(im):
     """
     im_orig = im.astype(np.float32, copy=True)
     im_orig -= cfg.PIXEL_MEANS
+    sio.savemat(im_minus_path, {'im_minus':im_orig}, oned_as='column')
 
     im_shape = im_orig.shape
     im_size_min = np.min(im_shape[0:2])

@@ -16,8 +16,8 @@ opts = vl_argparse(opts, varargin) ;
 
 % load network and convert to autonn
 if isempty(opts.net), opts.net = faster_rcnn_zoo(opts.modelName) ; end
-%layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
-%opts.net = Net(layers{:}) ;
+layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
+opts.net = Net(layers{:}) ;
 
 % evaluation options
 opts.testset = 'test' ; 
@@ -26,7 +26,7 @@ opts.prefetch = false ;
 % configure batch opts
 batchOpts.batchSize = numel(opts.gpus) * 1 ;
 batchOpts.numThreads = numel(opts.gpus) * 4 ;
-batchOpts.use_vl_imreadjpeg = 1 ; 
+batchOpts.use_vl_imreadjpeg = 0 ; 
 batchOpts.maxScale = 1000 ;
 batchOpts.scale = 600 ;
 batchOpts.averageImage = opts.net.meta.normalization.averageImage ;
@@ -36,11 +36,11 @@ cacheOpts.refreshCache = opts.refreshCache ;
 
 % configure model options
 modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
-modelOpts.maxPredsPerClass = 100 ; 
+modelOpts.maxPredsPerImage = 100 ; 
 modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
 modelOpts.numClasses = numel(opts.net.meta.classes.name) ;
 modelOpts.nmsThresh = 0.3 ;
-modelOpts.confThresh = 0.1 ;
+modelOpts.confThresh = 0.05 ;
 
 % configure dataset options
 dataOpts.name = 'pascal' ;
@@ -77,6 +77,7 @@ results = faster_rcnn_evaluation(expDir, opts.net, opts) ;
 function aps = pascal_eval_func(modelName, decodedPreds, imdb, opts)
 % ------------------------------------------------------------------
 
+fprintf('evaluating %s \n', modelName) ;
 numClasses = numel(imdb.meta.classes) - 1 ;  % exclude background
 aps = zeros(numClasses, 1) ;
 
@@ -101,8 +102,8 @@ function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
 % paths are set relative to data locations)
 
 if 0  % benchmark
-  keep = 50 ; testIdx = find(imdb.images.set == 3) ;
-  imdb.images.set(testIdx(keep:end)) = 4 ;
+  keep = 100 ; testIdx = find(imdb.images.set == 3) ;
+  imdb.images.set(testIdx(keep+1:end)) = 4 ;
 end
 opts.dataOpts = configureVOC(expDir, opts.dataOpts, 'test') ;
 

@@ -8,6 +8,7 @@ opts.scales = [8, 16, 32] ;
 opts.ratios = [0.5, 1, 2] ;
 opts.postNMSTopN = 300 ;
 opts.preNMSTopN = 6000 ;
+opts.filterSmallProposals = true ;
 opts.nmsThresh = 0.7 ;
 opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
@@ -46,9 +47,16 @@ proposals = bboxTransformInv(anchors, bboxDeltas) ;
 % clip proposals
 proposals = clipProposals(proposals, imInfo) ;
 
-keep = filterPropsoals(proposals, opts.minSize *imInfo(3)) ;
-proposals = proposals(keep,:) ;
-scores = scores(keep) ;
+if opts.filterSmallProposals 
+  % An observation was made in the following paper that this filtering
+  % may not be helpful:
+  % An Implementation of Faster RCNN with Study for Region Sampling, 
+  % X. Chen, A. Gupta, https://arxiv.org/pdf/1702.02138.pdf, 2017
+  keep = filterPropsoals(proposals, opts.minSize *imInfo(3)) ;
+  proposals = proposals(keep,:) ;
+  scores = scores(keep) ;
+end
+
 [~,sIdx] = sort(scores, 'descend') ;
 
 if opts.preNMSTopN > 0, sIdx = sIdx(1:min(numel(sIdx), opts.preNMSTopN)) ; end
@@ -64,15 +72,12 @@ scores = scores(keep) ;
 imIds = ones(1, numel(keep)) ;
 y = vertcat(imIds, proposals') ;
 
-if strcmp(origType, 'gpuArray') 
-  y = gpuArray(y) ;
-end
-
 % ---------------------------------------------------
 function keep = filterPropsoals(proposals, minSize)
 % ---------------------------------------------------
-  boxes = anchorCoder(proposals, 'CenWH') ;
-  keep = find(boxes(:,3) >= minSize & boxes(:,4) >= minSize) ;
+  W = proposals(:,3) - proposals(:,1) + 1 ;
+  H = proposals(:,4) - proposals(:,2) + 1 ;
+  keep = find(W >= minSize & H >= minSize) ;
 
 % ---------------------------------------------------
 function proposals = clipProposals(proposals, imInfo)

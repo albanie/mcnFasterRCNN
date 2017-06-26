@@ -16,16 +16,17 @@ imsz = double(imdb.images.imageSizes{batch}) ;
 sc = opts.batchOpts.scale ; maxSc = opts.batchOpts.maxScale ; 
 factor = max(sc ./ imsz) ; minScaleFactor = sc ./ min(imsz) ;
 if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-newSz = factor .* imsz ; imInfo = [ newSz minScaleFactor ] ;
+newSz = factor .* imsz ; imInfo = [ round(newSz) minScaleFactor ] ;
 
 if opts.batchOpts.use_vl_imreadjpeg
+  %imMean = permute(imMean, [1 3 2]) ;
   args = {imPaths, ...
     'Verbose', ...
     'NumThreads', opts.batchOpts.numThreads, ...
     'Interpolation', 'bilinear', ...
-    'SubtractAverage', imMean, ...
+    'SubtractAverage', squeeze(imMean), ...
     'CropAnisotropy', [1 1] ...
-    'Resize', newSz ...
+    'Resize', factor ...
   } ;
 
   if useGpu > 0 
@@ -43,8 +44,12 @@ if opts.batchOpts.use_vl_imreadjpeg
   end
 else
   im = single(imread(imPaths{1})) ;
-  data = bsxfun(@minus, im, imMean) ;
+  im = bsxfun(@minus, im, imMean) ;
 
+  % note: be v. careful here - resizing by `factor` with bilinear resampling
+  % does not produce the same result as resizing with non integer sizes.  To
+  % reproduce the caffe features, use `factor` scalar rather than `newSz`:
+  data = imresize(im, factor, 'bilinear') ; 
   if useGpu
     data = gpuArray(data) ;
   end
