@@ -24,7 +24,7 @@ can be downloaded [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-
 
 Running the `faster_rcnn_demo.m` script will download a model trained on pascal voc 2007 data and run it on a sample image to produce the figure below:
 
-![figure-demo](misc/psacal-demo-fig.jpg)
+![figure-demo](misc/pascal-demo-fig.jpg)
 
 ### Detector Evaluation
 
