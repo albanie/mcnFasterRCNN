@@ -5,7 +5,8 @@ modelNames = {
   'faster-rcnn-vggvd-coco'...
 } ;
 
-assert(ismember(modelName, modelNames), 'unrecognised model') ;
+msg = sprintf('%s: unrecognised model', modelName) ;
+assert(ismember(modelName, modelNames), msg) ;
 modelDir = fullfile(vl_rootnn, 'data/models-import') ;
 modelPath = fullfile(modelDir, sprintf('%s.mat', modelName)) ;
 

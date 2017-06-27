@@ -20,4 +20,12 @@ The model currently only operates in test mode, using the pre-trained models
 released with the caffe code which have been imported into matconvnet and 
 can be downloaded [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models).
 
-Training code will be added when the original experiments have been reproduced.
+### Demo
+
+Running the `faster_rcnn_demo.m` script will download a model trained on pascal voc 2007 data and run it on a sample image to produce the figure below:
+
+![figure-demo](misc/psacal-demo-fig.jpg)
+
+### Detector Evaluation
+
+There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models)). Training code will be added when the original experiments have been reproduced.

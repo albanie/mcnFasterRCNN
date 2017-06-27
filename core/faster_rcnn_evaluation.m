@@ -61,20 +61,20 @@ bboxes = cell(1, numClasses) ;
 cPreds = p.cPreds ; 
 bPreds = p.bPreds ; 
 rois = p.rois ; 
+keyboard
 
-for p = 1:numel(testIdx)
+for t = 1:numel(testIdx)
 
-  imsz = single(imdb.images.imageSizes{testIdx(p)}) ;
+  imsz = single(imdb.images.imageSizes{testIdx(t)}) ;
   maxSc = opts.batchOpts.maxScale ; 
   factor = max(opts.batchOpts.scale ./ imsz) ; 
   if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-  newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
 
   % find predictions for current image
-  cPreds_ = cPreds(:,:,p) ; 
-  bPreds_ = bPreds(:,:,p)' ; 
+  cPreds_ = cPreds(:,:,t) ; 
+  bPreds_ = bPreds(:,:,t)' ; 
 
-  rois_ = rois(:,:,p)' ; 
+  rois_ = rois(:,:,t)' ; 
   keep = find(rois_(:,4) ~= 0) ; % drop unused RoIs
   rois_ = rois_(keep,:) ; 
   bPreds_ = bPreds_(keep,:) ; 
@@ -116,15 +116,15 @@ for p = 1:numel(testIdx)
       pScores = cls_dets(:,5) ;
       switch opts.dataOpts.resultsFormat
         case 'minMax'
-          ; % do nothing
+          % do nothing
         case 'minWH'
-          pBoxes = [ pBoxes(1:2) pBoxes(3:4) - pBoxes(1:2) ] ;
+          pBoxes = [ pBoxes(:, 1:2) pBoxes(:,3:4) - pBoxes(:,1:2) ] ;
         otherwise
           error('format %s not recognised', opts.dataOpts.resultsFormat) ;
       end
 
       % store results
-      pId = imdb.images.name{testIdx(p)} ;
+      pId = imdb.images.name{testIdx(t)} ;
       scores{c} = vertcat(scores{c}, pScores) ;
       bboxes{c} = vertcat(bboxes{c}, pBoxes) ;
       imageIds{c} = vertcat(imageIds{c}, repmat({pId}, size(pScores))) ; 
@@ -134,7 +134,7 @@ for p = 1:numel(testIdx)
   %if numKept > opts.modelOpts.maxPredsPerImage
     %keyboard
   %end
-  if mod(p,100) == 1, fprintf('extracting %d/%d\n', p, numel(testIdx)) ; end
+  if mod(t,100) == 1, fprintf('extracting %d/%d\n', t, numel(testIdx)) ; end
 end
 
 % cheat:
@@ -284,7 +284,7 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   num = num + numel(batch) ;
   if numel(batch) == 0, continue ; end
   args = {imdb, batch, opts} ;
-  if ~isempty(sopts.scale), args = {args{:}, sopts.scale} ; end 
+  if ~isempty(sopts.scale), args = [args, {sopts.scale}] ; end 
   inputs = opts.modelOpts.get_eval_batch(args{:}) ;
 
   if opts.prefetch
@@ -292,7 +292,7 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
     batchEnd_ = min(t + 2*opts.batchOpts.batchSize - 1, numel(testIdx)) ;
     nextBatch = testIdx(batchStart_: numlabs : batchEnd_) ;
     args = {imdb, nextBatch, opts} ;
-    if ~isempty(sopts.scale), args = {args{:}, sopts.scale} ; end 
+    if ~isempty(sopts.scale), args = [args, {sopts.scale}] ; end 
     opts.modelOpts.get_eval_batch(args{:}, 'prefetch', true) ;
   end
 

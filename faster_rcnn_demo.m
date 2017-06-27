@@ -1,5 +1,6 @@
 function faster_rcnn_demo(varargin)
 %FASTER_RCNN_DEMO Minimalistic demonstration of the faster-rcnn detector
+% using the dagnn wrapper
 
 opts.modelPath = '' ;
 opts.nmsThresh = 0.3 ;
@@ -56,7 +57,7 @@ net.mode = 'test' ;
 
 % Load test image
 imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/dev/000456.jpg') ;
-data = single(imread(imPath)) ;
+im = single(imread(imPath)) ;
 
 % choose variables to track
 clsIdx = net.getVarIndex('cls_prob') ;
@@ -65,16 +66,17 @@ roisIdx = net.getVarIndex('rois') ;
 [net.vars([clsIdx bboxIdx roisIdx]).precious] = deal(true) ;
 
 % resize to meet the standard faster r-cnn size criteria
-imsz = [size(data,1) size(data,2)] ; maxSc = opts.maxScale ; 
+imsz = [size(im,1) size(im,2)] ; maxSc = opts.maxScale ; 
 factor = max(opts.scale ./ imsz) ; 
 if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
 newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
+data = imresize(im, factor, 'bilinear') ; 
 
 % run network and retrieve results
 net.eval({'data', data, 'im_info', imInfo}) ;
 probs = squeeze(net.vars(clsIdx).value) ;
 deltas = squeeze(net.vars(bboxIdx).value) ;
-boxes = net.vars(roisIdx).value(2:end,:)' ;
+boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
 
 % Visualize results for one class at a time
 for i = 2:numel(opts.classes)
@@ -91,7 +93,7 @@ for i = 2:numel(opts.classes)
   sel_boxes = find(cls_dets(:,end) >= opts.confThresh) ;
   if numel(sel_boxes) == 0, continue ; end
 
-  bbox_draw(data/255,cls_dets(sel_boxes,:));
+  bbox_draw(im/255,cls_dets(sel_boxes,:));
   title(sprintf('Dets for class ''%s''', opts.classes{i})) ;
   if exist('zs_dispFig', 'file'), zs_dispFig ; end
 
