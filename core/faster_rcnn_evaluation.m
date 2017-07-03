@@ -61,7 +61,6 @@ bboxes = cell(1, numClasses) ;
 cPreds = p.cPreds ; 
 bPreds = p.bPreds ; 
 rois = p.rois ; 
-keyboard
 
 for t = 1:numel(testIdx)
 
@@ -114,6 +113,9 @@ for t = 1:numel(testIdx)
       numKept = numKept + numel(keep) ;
       pBoxes = cls_dets(:,1:4) + 1 ; % fix offset
       pScores = cls_dets(:,5) ;
+
+      pBoxes = round(pBoxes, 2) ; % save storage space
+      pScores = round(pScores, 5) ;
       switch opts.dataOpts.resultsFormat
         case 'minMax'
           % do nothing
@@ -123,63 +125,21 @@ for t = 1:numel(testIdx)
           error('format %s not recognised', opts.dataOpts.resultsFormat) ;
       end
 
-      % store results
-      pId = imdb.images.name{testIdx(t)} ;
       scores{c} = vertcat(scores{c}, pScores) ;
       bboxes{c} = vertcat(bboxes{c}, pBoxes) ;
+
+      % image ids are used differently by the two datasets
+      switch opts.dataOpts.name
+        case 'pascal'
+          pId = imdb.images.name{testIdx(t)} ;
+        case 'coco'
+          pId = imdb.images.id(testIdx(t)) ;
+      end
       imageIds{c} = vertcat(imageIds{c}, repmat({pId}, size(pScores))) ; 
     end
   end
 
-  %if numKept > opts.modelOpts.maxPredsPerImage
-    %keyboard
-  %end
   if mod(t,100) == 1, fprintf('extracting %d/%d\n', t, numel(testIdx)) ; end
-end
-
-% cheat:
-%testIdx = find(imdb.images.set == 3) ;
-if 0 
-  caffePreds = load('/tmp/stored_dets.mat') ;
-  useCaffe = 0 ;
-  if useCaffe 
-    zz = load(fullfile(vl_rootnn,'data/pascal/standard_imdb/imdb.mat')) ;
-    %testIdx = find(zz.images.set == 3) ;
-  end
-
-  keep = 1:numel(testIdx) ;
-
-  caffeAll = caffePreds.all_boxes(:,keep) ;
-  caffeIds = cell(size(imageIds)) ;
-  caffeBoxes = cell(size(bboxes)) ;
-  caffeScores = cell(size(scores)) ;
-
-  for c = 1:numClasses - 1
-    caffePreds_ = caffeAll(c+1,:) ;
-    caffeIds_ = cellfun(@(x,y) {repmat({imdb.images.name{y}}, size(x,1), 1)}, caffePreds_, num2cell(testIdx)) ;
-    scoredBoxes = vertcat(caffePreds_{:}) ;
-    caffeIds{c} = vertcat(caffeIds_{:}) ; 
-    caffeBoxes{c} = scoredBoxes(:,1:4) ;
-    caffeScores{c} = scoredBoxes(:,5) ;
-    % tmp
-    cb = bboxCoder(caffeBoxes{c}, 'MinMax', 'MinWH') ;
-    mb = bboxCoder(bboxes{c}, 'MinMax', 'MinWH') ;
-    o = bboxOverlapRatio(cb, mb) ;
-    imageIds_ = imageIds{c} ;
-    numC = size(caffeIds{c}, 1) ;  numM = size(imageIds_, 1) ;
-    fprintf('caffe: %d vs mcn: %d\n', numC, numM) ;
-
-    %if numC ~= size(imageIds_, 1)
-      %keyboard 
-    %end
-
-  end
-
-  if useCaffe
-    imageIds = caffeIds ;
-    bboxes = caffeBoxes ;
-    scores = caffeScores ;
-  end
 end
 
 decodedPreds.imageIds = imageIds ;
@@ -271,7 +231,7 @@ state.bboxPreds = zeros(4 * numClasses, topK, numel(computedIdx), 'single') ;
 state.rois = zeros(4, topK, numel(computedIdx), 'single') ; 
 state.computedIdx = computedIdx ; 
 
-offset = 1 ;
+offset = 1 ; sc = sopts.scale ;
 
 for t = 1:opts.batchOpts.batchSize:numel(testIdx) 
   progress = fix((t-1) / opts.batchOpts.batchSize) + 1 ; % display progress
@@ -283,17 +243,15 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   batch = testIdx(batchStart : numlabs : batchEnd) ;
   num = num + numel(batch) ;
   if numel(batch) == 0, continue ; end
-  args = {imdb, batch, opts} ;
-  if ~isempty(sopts.scale), args = [args, {sopts.scale}] ; end 
-  inputs = opts.modelOpts.get_eval_batch(args{:}) ;
+  if ~isempty(sc), args = {batch, opts, sc} ; else args = {batch, opts} ; end
+  inputs = opts.modelOpts.get_eval_batch(imdb, args{:}) ;
 
   if opts.prefetch
     batchStart_ = t + (labindex - 1) + opts.batchOpts.batchSize ;
     batchEnd_ = min(t + 2*opts.batchOpts.batchSize - 1, numel(testIdx)) ;
-    nextBatch = testIdx(batchStart_: numlabs : batchEnd_) ;
-    args = {imdb, nextBatch, opts} ;
-    if ~isempty(sopts.scale), args = [args, {sopts.scale}] ; end 
-    opts.modelOpts.get_eval_batch(args{:}, 'prefetch', true) ;
+    next = testIdx(batchStart_: numlabs : batchEnd_) ;
+    if ~isempty(sc), args = {next, opts, sc} ; else args = {next, opts} ; end
+    opts.modelOpts.get_eval_batch(imdb, args{:}, 'prefetch', true) ;
   end
 
   net.eval(inputs, 'forward') ;

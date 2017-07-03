@@ -34,7 +34,7 @@ while waiting
       end
 
       fprintf(sprintf('Downloading %s ... \n', modelName)) ;
-      baseUrl = 'http://www.robots.ox.ac.uk/~albanie/models/faster_rcnn' ;
+      baseUrl = 'http://www.robots.ox.ac.uk/~albanie/models/faster' ;
       url = sprintf('%s/%s.mat', baseUrl, modelName) ;
       urlwrite(url, modelPath) ;
       return ;
