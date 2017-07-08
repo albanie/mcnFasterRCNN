@@ -95,21 +95,22 @@ args = {rpn_cls, [0 -1 c 0]} ;
 rpn_cls_reshape = Layer.create(@vl_nnreshape, args, largs{:}) ;
 
 args = {rpn_cls, gtBoxes, imInfo} ; % note: first input used to determine shape
-[rpn_labels, rpn_bbox_targets, rpn_in_w, rpn_out_w] = ...
+[rpn_labels, rpn_bbox_targets, rpn_iw, rpn_ow, rpn_cw] = ...
                  Layer.create(@vl_nnanchortargets, args) ;
-%rpn_labels.name = 'rpn_labels' ;
+rpn_labels.name = 'rpn_labels' ;
 %rpn_bbox_targets.name = 'rpn_bbox_targets' ;
 %rpn_in_w.name = 'rpn_bbox_inside_weights' ;
 %rpn_out.name = 'rpn_bbox_outside_weights' ;
 
 % rpn losses
-args = {rpn_cls_reshape, rpn_labels} ;
+args = {rpn_cls_reshape, rpn_labels, 'instanceWeights', rpn_cw} ;
 largs = {'name', 'rpn_loss_cls', 'numInputDer', 1} ;
 rpn_loss_cls = Layer.create(@vl_nnloss, args, largs{:}) ;
 
-args = {rpn_bbox_pred, rpn_bbox_targets, rpn_in_w, rpn_out_w, 'sigma', 3} ;
+weighting = {'insideWeights', rpn_iw, 'outsideWeights', rpn_ow} ;
+args = [{rpn_bbox_pred, rpn_bbox_targets, 'sigma', 3}, weighting] ;
 largs = {'name', 'rpn_loss_bbox', 'numInputDer', 1} ;
-rpn_loss_bbox = Layer.create(@vl_nnhuberloss, args, largs{:}) ;
+rpn_loss_bbox = Layer.create(@vl_nnsmoothL1loss, args, largs{:}) ;
 
 args = {rpn_loss_cls, rpn_loss_bbox, 'locWeight', opts.modelOpts.locWeight} ;
 largs = {'name', 'rpn_multitask_loss'} ;
@@ -160,9 +161,10 @@ bbox_pred = add_block(drop7, 'bbox_pred', opts, sz, 0, largs{:}) ;
 largs = {'name', 'loss_cls', 'numInputDer', 1} ;
 loss_cls = Layer.create(@vl_nnloss, {cls_score, labels}, largs{:}) ;
 
-args = {bbox_pred, bbox_targets, bbox_in_w, bbox_out_w, 'sigma', 1} ;
+weighting = {'insideWeights', bbox_in_w, 'outsideWeights', bbox_out_w} ;
+args = [{bbox_pred, bbox_targets, 'sigma', 1}, weighting] ;
 largs = {'name', 'loss_bbox', 'numInputDer', 1} ;
-loss_bbox = Layer.create(@vl_nnhuberloss, args, largs{:}) ;
+loss_bbox = Layer.create(@vl_nnsmoothL1loss, args, largs{:}) ;
 
 args = {loss_cls, loss_bbox, 'locWeight', opts.modelOpts.locWeight} ;
 largs = {'name', 'multitask_loss'} ;
@@ -173,11 +175,11 @@ if 1 % init from caffe weights
   fnames = fieldnames(pVals) ;
   for ff = 1:numel(fnames)
     fname = fnames{ff} ;
-    pNum = str2num(fname(end)) + 2 ; % find position (+1 MATLAB & +1 input pos)
+    pNum = str2double(fname(end)) + 2 ; % find position (+1 MATLAB & +1 input pos)
     fname_ = fname(1:end-2) ;
     fprintf('updating %s:%d\n', fname_, pNum) ;
     order = [3 4 2 1] ;
-    if strfind(fname, 'rpn') 
+    if contains(fname, 'rpn') 
       newVal = permute(pVals.(fname), order) ;
       rpn_multitask_loss.find(fname_, 1).inputs{pNum}.value = newVal ;
     else % handle second fork

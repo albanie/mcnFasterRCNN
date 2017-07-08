@@ -1,4 +1,4 @@
-function [l, t, iw, ow] = vl_nnanchortargets(x, gb, imInfo, varargin)
+function [l, t, iw, ow, cw] = vl_nnanchortargets(x, gb, imInfo, varargin)
 %VL_NNANCHORTARGETS produces training targets for RPN
 
   opts.baseSize = 16 ;
@@ -14,6 +14,9 @@ function [l, t, iw, ow] = vl_nnanchortargets(x, gb, imInfo, varargin)
   opts.allowedBorder = false ;
   opts.clobberPositives = false ;
   opts.filterSmallProposals = true ;
+  opts.negLabel = 1 ; % note: this is different to caffe (-1=ignore, 0=neg)
+  opts.posLabel = 2 ;  
+  opts.ignoreLabel = 0 ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
   layerHeight = size(x, 1) ;layerWidth = size(x, 2) ; 
@@ -35,8 +38,8 @@ function [l, t, iw, ow] = vl_nnanchortargets(x, gb, imInfo, varargin)
     [shiftX, shiftY] = meshgrid(shiftX, shiftY) ;
     shiftX_T = shiftX' ; shiftY_T = shiftY' ;
     shifts = [shiftX_T(:)  shiftY_T(:) shiftX_T(:)  shiftY_T(:) ] ;
-    anchors = bsxfun(@plus, permute(anchors, [3 1 2]), ...
-                                        reshape(shifts, [], 1, 4)) ;
+    reshaped = reshape(shifts, [], 1, 4) ;
+    anchors = bsxfun(@plus, permute(anchors, [3 1 2]), reshaped) ;
     allAnchors = reshape(permute(anchors, [2 1 3]), [], 4) ;
     totalAnchors = size(allAnchors, 1) ;
 
@@ -46,7 +49,7 @@ function [l, t, iw, ow] = vl_nnanchortargets(x, gb, imInfo, varargin)
            (allAnchors(:,3) < imInfo(2) + opts.allowedBorder) & ...
            (allAnchors(:,4) < imInfo(1) + opts.allowedBorder)) ;
     anchors = allAnchors(idxInside,:) ;
-    labels = zeros(numel(idxInside),1) * -1 ; % 1 +ve, 0 -ve, -1 ignore
+    labels = ones(numel(idxInside),1) * opts.ignoreLabel ; % 1 +ve, 0 -ve, -1 ignore
 
     % compute overlaps
     overlaps = bbox_overlap(gtBoxes, anchors) ;
@@ -55,56 +58,56 @@ function [l, t, iw, ow] = vl_nnanchortargets(x, gb, imInfo, varargin)
     [~,gtI] = find(overlaps == gtMaxOverlaps) ;
 
     if ~opts.clobberPositives 
-      labels(maxOverlaps < opts.rpnNegativeOverlap) = 0 ;
+      labels(maxOverlaps < opts.rpnNegativeOverlap) = opts.negLabel ;
     end
 
     % for each gt, assign anchor with highest overlap and all above IoU thresh
-    labels(gtI) = 1 ; labels(maxOverlaps >= opts.rpnPositiveOverlap) = 1 ;
+    labels(gtI) = opts.posLabel ; 
+    labels(maxOverlaps >= opts.rpnPositiveOverlap) = opts.posLabel ;
 
     if opts.clobberPositives 
-      labels(maxOverlaps < opts.rpnNegativeOverlap) = 0 ;
+      labels(maxOverlaps < opts.rpnNegativeOverlap) = opts.negLabel ;
     end
 
     % subsample positive labels if required
     numPos = floor(opts.rpnFGRatio * opts.rpnBatchSize) ;
-    fgInds = find(labels == 1) ; excess = numel(fgInds) - numPos ;
+    fgInds = find(labels == opts.posLabel) ; excess = numel(fgInds) - numPos ;
     if excess > 0 
       dropIdx = fgInds(randsample(numel(fgInds), excess)) ;
-      labels(dropIdx) = -1 ;
+      labels(dropIdx) = opts.ignoreLabel ;
     end
 
     % subsample negative labels if required
-    numNeg = opts.rpnBatchSize - sum(labels == 1) ;
-    bgInds = find(labels == 0) ; excess = numel(bgInds) - numNeg ;
+    numNeg = opts.rpnBatchSize - sum(labels == opts.posLabel) ;
+    bgInds = find(labels == opts.negLabel) ; excess = numel(bgInds) - numNeg ;
     if excess > 0 
       %dropIdx = bgInds(randsample(numel(bgInds), excess)) ;
       % temp fix to numerically reproduce python code
-      tmp = load('drops.mat') ; dropIdx = tmp.idx + 1 ;
-      labels(dropIdx) = -1 ;
+      tmp = load('drops.mat') ; dropIdx = tmp.drops + 1 ;
+      labels(dropIdx) = opts.ignoreLabel ;
     end
 
     bboxTargets = bbox_transform(anchors, gtBoxes(mI,:)) ;
     bboxInsideWeights = zeros(numel(idxInside), 4) ;
     bboxOutsideWeights = zeros(numel(idxInside), 4) ;
-    bboxInsideWeights(labels == 1,:) = opts.insideWeight ;
+    bboxInsideWeights(labels == opts.posLabel,:) = opts.insideWeight ;
 
     if opts.rpnPositiveWeight < 0 % uniform weighting of samples
-      numExamples = sum(labels >= 0) ;
+      numExamples = sum(labels ~= opts.ignoreLabel) ;
       posWeights = ones(1,4) .* (1 / numExamples) ;
       negWeights = ones(1,4) .* (1 / numExamples) ;
     else
       msg = 'RPN positive weight must lie in [0,1]' ;
       assert(opts.rpnPositiveWeight > 0 & opts.rpnPositiveWeight < 1, msg) ;
-      posWeights = opts.rpnPositiveWeight / sum(labels == 1) ;
-      negWeights = (1 - opts.rpnPositiveWeight) / sum(labels == 0) ;
+      posWeights = opts.rpnPositiveWeight / sum(labels == opts.posLabel) ;
+      negWeights = (1 - opts.rpnPositiveWeight) / sum(labels == opts.negLabel) ;
     end
 
-    pos = find(labels == 1) ; neg = find(labels == 0) ;
+    pos = find(labels == opts.posLabel) ; neg = find(labels == opts.negLabel) ;
     bboxOutsideWeights(pos,:) = repmat(posWeights, numel(pos), 1) ;
     bboxOutsideWeights(neg,:) = repmat(negWeights, numel(neg), 1) ;
 
-    keyboard
-    labels = unMap(labels, totalAnchors, idxInside, -1) ;
+    labels = unMap(labels, totalAnchors, idxInside, opts.ignoreLabel) ;
     bboxTargets = unMap(bboxTargets, totalAnchors, idxInside, 0) ;
     bboxInsideWeights = unMap(bboxInsideWeights, totalAnchors, idxInside, 0) ;
     bboxOutsideWeights = unMap(bboxOutsideWeights, totalAnchors, idxInside, 0) ;
@@ -115,12 +118,11 @@ function [l, t, iw, ow] = vl_nnanchortargets(x, gb, imInfo, varargin)
     % To be compatible with the expected loss function shapes and keep things
     % simple, the labels are reshape to have shape H x (W*A) x 1 x N (where N is
     % the batch size (always 1).  
-
     l(:,:,:,bb) = reshape(permute(reshape(labels, A, W, H), [3 2 1]), H, W*A) ;
-    %l(:,:,:,bb) = reshape(permute(reshape(labels, A, W, H), [3 2 1]), 1, 1, H*W*A) ;
     t(:,:,:,bb) = permute(reshape(bboxTargets', A*4, W, H), [3 2 1]) ;
     iw(:,:,:,bb) = permute(reshape(bboxInsideWeights', A*4, W, H), [3 2 1]) ;
     ow(:,:,:,bb) = permute(reshape(bboxOutsideWeights', A*4, W, H), [3 2 1]) ;
+    cw = 1 / sum(labels ~= opts.ignoreLabel) ; % instance weights for classifier
   end
 
 %  ------------------------------------------

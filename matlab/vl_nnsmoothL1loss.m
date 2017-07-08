@@ -1,10 +1,10 @@
-function y = vl_nnhuberloss(x, t, varargin)
-%VL_NNHUBERLOSS computes the Huber Loss
-%   Y = VL_NNHUBERLOSS(X, T) computes the Huber Loss (also known 
-%   as the "smooth L1 loss" between an N x 1 array of inputs 
+function y = vl_nnsmoothL1loss(x, t, varargin)
+%VL_NNSMOOTHL1LOSS computes the Huber Loss
+%   Y = VL_NNSMOOTHL1LOSS(X, T) computes the smooth L1 Loss (also known 
+%   as the huber loss) between an N x 1 array of inputs 
 %   predictions. The output Y is a SINGLE scalar.
 %
-%   The Huber Loss between X and T is as:
+%   The smooth L1 Loss between X and T is as:
 %
 %     Loss = sum(f(X - T) .* W)
 %
@@ -26,33 +26,41 @@ function y = vl_nnhuberloss(x, t, varargin)
 %
 %   VL_NNHUBERLOSS(..., 'option', value, ...) takes the following option:
 %
-%   `instanceWeights`:: 1
-%    Weights the loss contribution of each input. This can be an N x 1 
-%   array that weights each input individually, or a scalar (in which
-%   case the same weight is applied to every input). 
+%   `insideWweights`:: []
+%    If given, weights the distance between x and t *before* computing the 
+%    value of the smoothL1 loss funciton.
 %
-% Copyright (C) 2016 Samuel Albanie, Hakan Bilen and Andrea Vedaldi
+%   `outsideWweights`:: []
+%    If given, weights the distance between x and t *after* computing the 
+%    value of the smoothL1 loss funciton.
+%
+% Copyright (C) 2017 Samuel Albanie, Hakan Bilen
 % All rights reserved.
 %
 % This file is part of the VLFeat library and is made available under
 % the terms of the BSD license (see the COPYING file).
 
-%TODO(inside weights and outside weights)
 opts.sigma = 1 ;
-opts.instanceWeights = ones(size(x)) ;
+opts.insideWeights = [] ;
+opts.outsideWeights = [] ;
 [opts, dzdy] = vl_argparsepos(opts, varargin, 'nonrecursive') ;
 
 delta = x - t ;
-absDelta = abs(delta) ;
-sigma2 = opts.sigma ^ 2 ;
+if ~isempty(opts.insideWeights), delta = delta .* opts.insideWeights ; end
+absDelta = abs(delta) ; sigma2 = opts.sigma ^ 2 ;
 linearRegion = (absDelta > 1. / sigma2) ;
 
 if isempty(dzdy)
     absDelta(linearRegion) = absDelta(linearRegion) - 0.5 / sigma2 ;
     absDelta(~linearRegion) = 0.5 * sigma2 * absDelta(~linearRegion) .^ 2 ;
-    y = opts.instanceWeights(:)' * absDelta(:) ;
+    if ~isempty(opts.outsideWeights)
+      y = opts.outsideWeights(:)' * absDelta(:) ;
+    else
+      y = sum(absDelta(:)) ;
+    end
 else
     delta(linearRegion) = sign(delta(linearRegion));
     delta(~linearRegion) = sigma2 * delta(~linearRegion) ;
-    y = opts.instanceWeights .* delta .* dzdy{1} ;
+    if ~isempty(opts.outsideWeights), delta = delta .* opts.outsideWeights ; end
+    y = delta .* dzdy{1} ;
 end
