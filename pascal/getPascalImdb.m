@@ -17,7 +17,7 @@ imdb = loadImdb(opts) ;
 opts.pascalOpts = loadPascalOpts(opts) ;
 
 % add meta information (inlcuding background class)
-imdb.meta.classes = {'background' opts.pascalOpts.classes{:}} ;
+imdb.meta.classes = ['background' opts.pascalOpts.classes'] ;
 classIds = 1:numel(imdb.meta.classes) ;  
 imdb.classMap = containers.Map(imdb.meta.classes, classIds) ;
 imdb.images.ext = 'jpg' ;
@@ -64,7 +64,7 @@ if ~exist(cache07, 'file')
                     'includeDevkit', true, ...
                     'includeTest', true, ...
                     'includeDetection', true, ...
-                    'includeSegmentation', false) ;
+                    'includeSegmentation', true) ;
     save(cache07, '-struct', 'imdb07') ;
 else
     imdb07 = load(cache07) ;
@@ -119,12 +119,12 @@ function annotations = loadAnnotations(imdb, opts)
 % ------------------------------------------------
 
 annotations = cell(1, numel(imdb.images.name)) ;
-for i = 1:numel(imdb.images.name)
-    match = find(imdb.objects.image == i) ;
+for ii = 1:numel(imdb.images.name)
+    match = find(imdb.objects.image == ii) ;
 
     % normalize annotation
     if opts.excludeDifficult
-        keep = ~[imdb.objects.difficult(match)] ;
+        keep = ~imdb.objects.difficult(match) ;
     else
         keep = 1:numel(match) ;
     end
@@ -134,12 +134,12 @@ for i = 1:numel(imdb.images.name)
     classes = imdb.objects.class(match) ;
 
     % normalize annotation
-    imSize = repmat(imdb.images.size(:, i)', [1 2]) ;
+    imSize = repmat(imdb.images.size(:, ii)', [1 2]) ;
     gt.boxes = bsxfun(@rdivide, boxes', single(imSize)) ;
     gt.classes = classes + 1 ; % add offset for background
 
     assert(all(2 <= gt.classes) && all(gt.classes <= 21), ...
                  'pascal class labels do not lie in the expected range') ;
-    annotations{i} = gt ;
-    fprintf('Loading annotaton %d \n', i) ;
+    annotations{ii} = gt ;
+    fprintf('Loading annotaton %d \n', ii) ;
 end

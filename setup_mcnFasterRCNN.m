@@ -4,5 +4,6 @@ function setup_mcnFasterRCNN()
 
   root = fileparts(mfilename('fullpath')) ;
   addpath(root) ;
-  addpath(root, [root '/matlab'], [root '/pascal'], [root '/core'] ) ;
-  addpath([root '/pascal/helpers'], [root '/coco']) ;
+  addpath(root, [root '/matlab'], [root '/pascal'], [root '/core']) ;
+  addpath([root '/pascal/helpers'], [root '/coco'], [root '/misc']) ;
+  addpath([vl_rootnn '/examples/fast_rcnn/bbox_functions']) ;

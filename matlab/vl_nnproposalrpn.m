@@ -6,8 +6,8 @@ opts.baseSize = 16 ;
 opts.minSize = 16 ;
 opts.scales = [8, 16, 32] ;
 opts.ratios = [0.5, 1, 2] ;
-opts.postNMSTopN = 300 ;
-opts.preNMSTopN = 6000 ;
+opts.postNMSTopN = 300 ; % often 300 for test, 2000 for training
+opts.preNMSTopN = 6000 ; % often 6000 for test, 12000 for training
 opts.filterSmallProposals = true ;
 opts.nmsThresh = 0.7 ;
 opts = vl_argparse(opts, varargin, 'nonrecursive') ;
@@ -31,6 +31,7 @@ bboxDeltas = reshape(permute(b, [3 2 1]), 4, [])' ;
 scores = reshape(permute(scores, [3 2 1]), [], 1) ;
 proposals = bboxTransformInv(anchors, bboxDeltas) ;
 proposals = clipProposals(proposals, imInfo) ;
+keyboard
 
 if opts.filterSmallProposals 
   % An observation was made in the following paper that this filtering
@@ -89,24 +90,3 @@ function proposals = bboxTransformInv(anchors, bboxDeltas)
             predCenY - 0.5 * predH ...
             predCenX + 0.5 * predW ...
             predCenY + 0.5 * predH] ;
-
-% --------------------------------------
-function anchors = generateAnchors(opts)
-% --------------------------------------
-  baseAnchor = [1, 1, opts.baseSize, opts.baseSize] - 1;
-  baseCenWH = anchorCoder(baseAnchor, 'CenWH') ;
-  sz = prod(baseCenWH([3 4])) ;
-  sizeRatios = sz ./ opts.ratios ;
-  W = round(sqrt(sizeRatios)) ; H = round(W .* opts.ratios) ;
-  cen = repmat(baseCenWH(1:2), [numel(W) 1]) ;
-  boxes = [ cen W' H'] ;
-  ratioAnchors = anchorCoder(boxes, 'anchor') ;
-
-  % compute scale anchors
-  m = numel(opts.ratios) ;  n = numel(opts.scales) ;
-  scaleAnchors = arrayfun(@(i) {repmat(ratioAnchors(i,:), n, 1)}, 1:m) ;
-  scaleAnchors = vertcat(scaleAnchors{:}) ;
-  scaleBoxes = anchorCoder(scaleAnchors, 'CenWH') ;
-  z = repmat(opts.scales', [numel(opts.ratios) 2]) ; 
-  scaleBoxes(:,3:4) = scaleBoxes(:,3:4) .* z ;
-  anchors = anchorCoder(scaleBoxes, 'anchor') ;

@@ -56,7 +56,7 @@ net = dagnn.DagNN.loadobj(net);
 net.mode = 'test' ;
 
 % Load test image
-imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/dev/000456.jpg') ;
+imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/000456.jpg') ;
 im = single(imread(imPath)) ;
 
 % choose variables to track

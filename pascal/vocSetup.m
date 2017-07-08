@@ -235,8 +235,8 @@ for j=1:numel(imdb.images.id)
   for q = 1:numel(x.object)
     xmin = sscanf(x.object(q).bndbox.xmin,'%d') ;
     ymin = sscanf(x.object(q).bndbox.ymin,'%d') ;
-    xmax = sscanf(x.object(q).bndbox.xmax,'%d') - 1 ;
-    ymax = sscanf(x.object(q).bndbox.ymax,'%d') - 1 ;
+    xmax = sscanf(x.object(q).bndbox.xmax,'%d') ;
+    ymax = sscanf(x.object(q).bndbox.ymax,'%d') ;
     
     k = k + 1 ;
     roi.id = k ;

@@ -34,7 +34,8 @@ function y = vl_nnreshape(x, shape, varargin)
 if isnumeric(shape) % apply caffe style conventions if needed
   shape_ = num2cell(shape) ;
   k = find(shape == -1) ; if k, shape_{k} = [] ; end
-  k = find(shape == 0) ; if k, shape_{k} = size(x,k) ; end
+  k = find(shape == 0) ;
+  if k, rep = arrayfun(@(i) {size(x,i)}, k) ; shape_(k) = rep ; end
   shape = shape_ ;
 end
 
@@ -43,5 +44,5 @@ batchSize = size(x, 4);
 if isempty(dzdy)
     y = reshape(x, shape{1}, shape{2}, shape{3}, batchSize) ;
 else
-    y = reshape(dzdy, size(x)) ;
+    y = reshape(dzdy{1}, size(x)) ;
 end
