@@ -12,6 +12,9 @@ opts.filterSmallProposals = true ;
 opts.nmsThresh = 0.7 ;
 opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
+% numerical checking
+numChecks = 1 ;
+
 if ~isempty(opts.fixed)
   y = opts.fixed ; return ;
 end
@@ -29,9 +32,24 @@ anchors = bsxfun(@plus, permute(anchors, [3 1 2]), reshape(shifts, [], 1, 4)) ;
 anchors = reshape(permute(anchors, [2 1 3]), [], 4) ;
 bboxDeltas = reshape(permute(b, [3 2 1]), 4, [])' ;
 scores = reshape(permute(scores, [3 2 1]), [], 1) ;
+
 proposals = bboxTransformInv(anchors, bboxDeltas) ;
+if numChecks
+  tmp = load('bbox_deltas.mat') ; 
+  bboxDeltas2 = tmp.bbox_deltas ;
+  proposalsInv_ = bboxTransformInv(anchors, bboxDeltas2) ;
+  %p3 = bbox_transform_inv(anchors, bboxDeltas2) ;
+end
+
+if numChecks
+  tmp = load('proposals_inv.mat') ; proposalsInv2 = tmp.proposals_inv ;
+end
+
 proposals = clipProposals(proposals, imInfo) ;
-keyboard
+
+if numChecks
+  tmp = load('clipped_proposals.mat') ; cProposals = tmp.clipped ;
+end
 
 if opts.filterSmallProposals 
   % An observation was made in the following paper that this filtering
@@ -50,9 +68,19 @@ cpuData = gather([proposals scores]) ; % faster on CPU
 keep = bbox_nms(cpuData, opts.nmsThresh) ;
 
 if opts.postNMSTopN, keep = keep(1:min(numel(keep), opts.postNMSTopN)) ; end
+
+if numChecks 
+  tmp = load('keep.mat') ; keep2 = single(tmp.keep)' + 1 ; keep = keep2 ;
+end
+
 proposals = proposals(keep,:) + 1 ; % fix indexing expected by ROI layer
 imIds = ones(1, numel(keep)) ;
 y = vertcat(imIds, proposals') ;
+
+if numChecks 
+  tmp = load('prop_blob.mat') ; blob = single(tmp.prop_blob) + 1 ; y = blob ;
+  y = y' ;
+end
 
 % ---------------------------------------------------
 function keep = filterPropsoals(proposals, minSize)

@@ -1,134 +1,103 @@
-function [r, l, t, iw, ow] = vl_nnproposaltargets(p, gb, gl, varargin)
-%VL_NNANCHORTARGETS produces training targets for RPN
+function [r, l, t, iw, ow, cw] = vl_nnproposaltargets(p, gb, gl, varargin)
+%VL_NNPROPOSALTARGETS produces training targets for proposals
 
-  opts.baseSize = 16 ;
+  opts.roiBatchSize = 128 ;
+  opts.bgClass = 1 ;
   opts.numClasses = 21 ;
-  opts.featStride = 16 ;
-  opts.rpnFGRatio = 0.5 ;
+  opts.fgRatio = 0.5 ;
+  opts.fgThresh = 0.5 ;
+  opts.bgThreshLo = 0 ;
+  opts.bgThreshHi = 0.5 ;
+  opts.negLabel = 1 ; % note: this is different to caffe (-1=ignore, 0=neg)
   opts.insideWeight = 1 ;
-  opts.rpnBatchSize = 256 ;
-  opts.scales = [8, 16, 32] ;
-  opts.ratios = [0.5, 1, 2] ;
-  opts.rpnPositiveWeight = -1 ;
-  opts.rpnNegativeOverlap = 0.3 ;
-  opts.rpnPositiveOverlap = 0.7 ;
-  opts.allowedBorder = false ;
-  opts.clobberPositives = false ;
-  opts.filterSmallProposals = true ;
+  opts.normalizeTargets = 1 ;
+  opts.normalizeMeans = [0, 0, 0, 0] ;
+  opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
-  keyboard
+  %p = p - 1 ; % TODO(sam) cleanup indexing
+  batchSize = numel(gb) ; assert(batchSize == 1, 'only batch size 1 support') ;
+  gtBoxes = gb{1} ; gtLabels = gl{1} ;
 
-  layerHeight = size(x, 1) ;layerWidth = size(x, 2) ; 
-  anchors = generateAnchors(opts) ; numAnchors = size(anchors, 1) ;
-  batchSize = size(x,4) ; assert(batchSize == 1, 'only batch size 1 support') ;
+  % add ground truth boxes to candidates
+  p = [ p' ; [ones(size(gtBoxes,1),1) gtBoxes] ] ;
+  roisPerImage = opts.roiBatchSize / batchSize ;
+  [l, r, t, iw] = sampleRois(p, gtBoxes, gtLabels, roisPerImage, opts) ;
+  ow = zeros(size(iw)) ; 
+  ow(iw > 0) = 1 ./ numel(l) ; % handle batch size normalisation here
+  cw = 1 / numel(l) ; % instance weights for classifier
 
-  % labels, targets and  'inside'/'outside' weights
-  l = zeros(layerHeight, layerWidth*numAnchors, 1, batchSize, 'like', x) ;
-  t = zeros(layerHeight, layerWidth, numAnchors*4, batchSize, 'like', x) ;
-  iw = zeros(layerHeight, layerWidth, numAnchors*4, batchSize, 'like', x) ;
-  ow = zeros(layerHeight, layerWidth, numAnchors*4, batchSize, 'like', x) ;
+% ---------------------------------------------------------------------
+function [labels, rois, targets, iw] = sampleRois(allRois, gtBoxes, ...
+                                             gtLabels, roisPerImage, opts)
+% ---------------------------------------------------------------------
+% sample a set of RoIs that achieve the desired balance between foreground
+% and background
 
-  for bb = 1:batchSize
-    gtBoxes = gb{bb} ;
+fgRoisPerImage = round(opts.fgRatio * roisPerImage) ;
+overlaps = bbox_overlap(allRois(:,2:end), gtBoxes) ;
+[maxOverlaps, gtI] = max(overlaps, [], 2) ;
+labels = gtLabels(gtI,:) ;
 
-    % compute proposals using anchors and bbox deltas
-    shiftX = (0:layerWidth-1) .* double(opts.featStride) ;
-    shiftY = (0:layerHeight-1) .* double(opts.featStride) ;
-    [shiftX, shiftY] = meshgrid(shiftX, shiftY) ;
-    shiftX_T = shiftX' ; shiftY_T = shiftY' ;
-    shifts = [shiftX_T(:)  shiftY_T(:) shiftX_T(:)  shiftY_T(:) ] ;
-    anchors = bsxfun(@plus, permute(anchors, [3 1 2]), ...
-                                        reshape(shifts, [], 1, 4)) ;
-    allAnchors = reshape(permute(anchors, [2 1 3]), [], 4) ;
-    totalAnchors = size(allAnchors, 1) ;
+fgInds = find(maxOverlaps >= opts.fgThresh) ;
+% prevent issue caused by fgRoisPerImage < numel(fgInds)
+numFgRois = min(fgRoisPerImage, numel(fgInds)) ;
 
-    % restrict to anchors that lie inside the image
-    idxInside = find((allAnchors(:,1) >= -opts.allowedBorder) & ...
-           (allAnchors(:,2) >= -opts.allowedBorder) & ...
-           (allAnchors(:,3) < imInfo(2) + opts.allowedBorder) & ...
-           (allAnchors(:,4) < imInfo(1) + opts.allowedBorder)) ;
-    anchors = allAnchors(idxInside,:) ;
-    labels = zeros(numel(idxInside),1) * -1 ; % 1 +ve, 0 -ve, -1 ignore
+if numel(fgInds) > 0
+  fgInds = fgInds(randsample(numel(fgInds), numFgRois)) ;
+  % temp fix to numerically reproduce python code
+  tmp = load('fg_inds.mat') ; 
+  fgInds = tmp.inds + 1 ;
+end
 
-    % compute overlaps
-    overlaps = bbox_overlap(gtBoxes, anchors) ;
-    [maxOverlaps, mI] = max(overlaps) ;
-    [gtMaxOverlaps, ~] = max(overlaps, [], 2) ;
-    [~,gtI] = find(overlaps == gtMaxOverlaps) ;
+% pick bg rois that lie inside the threshold interval
+bgInds = find(maxOverlaps < opts.bgThreshHi & maxOverlaps >= opts.bgThreshLo) ;
+numBgRois = roisPerImage - numFgRois ;
+numBgRois = min(numBgRois, numel(bgInds)) ;
 
-    if ~opts.clobberPositives 
-      labels(maxOverlaps < opts.rpnNegativeOverlap) = 0 ;
-    end
+if numel(bgInds) > 0
+  bgInds = bgInds(randsample(numel(bgInds), numBgRois)) ;
+  % temp fix to numerically reproduce python code
+  tmp = load('bg_inds.mat') ; 
+  bgInds = tmp.inds + 1 ;
+end
 
-    % for each gt, assign anchor with highest overlap and all above IoU thresh
-    labels(gtI) = 1 ; labels(maxOverlaps >= opts.rpnPositiveOverlap) = 1 ;
+keep = [fgInds bgInds] ;
+labels = labels(keep) ;
+labels(numFgRois+1:end) = opts.negLabel ; % set labels to bg
+rois = allRois(keep,:) ;
+targetData = computeTargets(rois(:,2:end), gtBoxes(gtI(keep),:), labels, opts) ;
+[targets, iw] = getBboxRegressionLabels(targetData, opts) ;
+rois = rois' ; % mcn expected roi shape
 
-    if opts.clobberPositives 
-      labels(maxOverlaps < opts.rpnNegativeOverlap) = 0 ;
-    end
-
-    % subsample positive labels if required
-    numPos = floor(opts.rpnFGRatio * opts.rpnBatchSize) ;
-    fgInds = find(labels == 1) ; excess = numel(fgInds) - numPos ;
-    if excess > 0 
-      dropIdx = fgInds(randsample(numel(fgInds), excess)) ;
-      labels(dropIdx) = -1 ;
-    end
-
-    % subsample negative labels if required
-    numNeg = opts.rpnBatchSize - sum(labels == 1) ;
-    bgInds = find(labels == 0) ; excess = numel(bgInds) - numNeg ;
-    if excess > 0 
-      %dropIdx = bgInds(randsample(numel(bgInds), excess)) ;
-      % temp fix to numerically reproduce python code
-      tmp = load('drops.mat') ;
-      dropIdx = tmp.idx + 1 ;
-      labels(dropIdx) = -1 ;
-    end
-
-    bboxTargets = bbox_transform(anchors, gtBoxes(mI,:)) ;
-    bboxInsideWeights = zeros(numel(idxInside), 4) ;
-    bboxOutsideWeights = zeros(numel(idxInside), 4) ;
-    bboxInsideWeights(labels == 1,:) = opts.insideWeight ;
-
-    if opts.rpnPositiveWeight < 0 % uniform weighting of samples
-      numExamples = sum(labels >= 0) ;
-      posWeights = ones(1,4) .* (1 / numExamples) ;
-      negWeights = ones(1,4) .* (1 / numExamples) ;
-    else
-      msg = 'RPN positive weight must lie in [0,1]' ;
-      assert(opts.rpnPositiveWeight > 0 & opts.rpnPositiveWeight < 1, msg) ;
-      posWeights = opts.rpnPositiveWeight / sum(labels == 1) ;
-      negWeights = (1 - opts.rpnPositiveWeight) / sum(labels == 0) ;
-    end
-
-    pos = find(labels == 1) ; neg = find(labels == 0) ;
-    bboxOutsideWeights(pos,:) = repmat(posWeights, numel(pos), 1) ;
-    bboxOutsideWeights(neg,:) = repmat(negWeights, numel(neg), 1) ;
-
-    labels = unMap(labels, totalAnchors, idxInside, -1) ;
-    bboxTargets = unMap(bboxTargets, totalAnchors, idxInside, 0) ;
-    bboxInsideWeights = unMap(bboxInsideWeights, totalAnchors, idxInside, 0) ;
-    bboxOutsideWeights = unMap(bboxOutsideWeights, totalAnchors, idxInside, 0) ;
-
-    % prepare for reshape fu to align the zodiac
-    W = layerWidth ; H = layerHeight ; A = numAnchors ;
-
-    % To be compatible with the expected loss function shapes and keep things
-    % simple, the labels are reshape to have shape H x (W*A) x 1 x N (where N is
-    % the batch size (always 1).  
-
-    l(:,:,:,bb) = reshape(permute(reshape(labels, A, W, H), [3 2 1]), H, W*A) ;
-    %l(:,:,:,bb) = reshape(permute(reshape(labels, A, W, H), [3 2 1]), 1, 1, H*W*A) ;
-    t(:,:,:,bb) = permute(reshape(bboxTargets', A*4, W, H), [3 2 1]) ;
-    iw(:,:,:,bb) = permute(reshape(bboxInsideWeights', A*4, W, H), [3 2 1]) ;
-    ow(:,:,:,bb) = permute(reshape(bboxOutsideWeights', A*4, W, H), [3 2 1]) ;
+% ------------------------------------------------------------
+function targetData = computeTargets(rois, gtBoxes, labels, opts) 
+% ------------------------------------------------------------
+  targets = bbox_transform(rois, gtBoxes) ;
+  if opts.normalizeTargets % normalize targets by mean and std dev
+    centered = bsxfun(@minus, targets, opts.normalizeMeans) ;
+    targets = bsxfun(@rdivide, centered, opts.normalizeStdDevs) ;  
   end
+  targetData = [labels targets] ;
 
-%  ------------------------------------------
-function res = unMap(vals, count, idx, fill)
-%  ------------------------------------------
-  res = ones(count, size(vals,2)) * fill ; 
-  res(idx,:) = vals ; 
-  
+% --------------------------------------------------------------
+function [targets,iw] = getBboxRegressionLabels(targetData, opts) 
+% ---------------------------------------------------------------
+% GETBBOXREGRESSIONLABELS transforms the given targetData into the form
+% expected by the loss function
+%
+% `targetData` is a N x 5 array of the form (class, tx, ty, tw, th)
+% 
+% Returns an 1 1 x (4*numClasses) x N array of regression targets (where only
+% the ground truth class takes non-zero target values
+  classes = targetData(:,1) ;
+  targets = zeros(1,1,4 * opts.numClasses, numel(classes)) ;
+  iw = zeros(size(targets)) ;
+  inds = find(classes ~= opts.bgClass) ;
+  for ii = 1:numel(inds)
+    ind = inds(ii) ;
+    cls = classes(ind) ;
+    head = 4 * (cls-1) ; tail = head + 4 ;
+    targets(:,:,head+1:tail, ind) = targetData(ind, 2:end) ;
+    iw(:,:,head+1:tail, ind) = opts.insideWeight ;
+  end

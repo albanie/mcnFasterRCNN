@@ -127,17 +127,18 @@ rpn_cls_prob_reshape = Layer.create(@vl_nnreshape, args, largs{:}) ;
 proposalConf = {'postNMSTopN', 2000, 'preNMSTopN', 12000} ;
 featOpts = [{'featStride', opts.modelOpts.featStride}, proposalConf] ;
 args = {rpn_cls_prob_reshape, rpn_bbox_pred, imInfo, featOpts{:}} ; %#ok
+largs = {'name', 'proposals'} ; 
 proposals = Layer.create(@vl_nnproposalrpn, args, largs{:}) ;
 
 args = {proposals, gtBoxes, gtLabels, 'numClasses', opts.modelOpts.numClasses} ;
 largs = {'name', 'roi_data', 'numInputDer', 1} ;
-[rois, labels, bbox_targets, bbox_in_w, bbox_out_w] = ...
+[rois, labels, bbox_targets, bbox_in_w, bbox_out_w, cw] = ...
                  Layer.create(@vl_nnproposaltargets, args, largs{:}) ;
 
 % reattach fully connected layers following roipool
 largs = {'name', 'roi_pool5'} ;
-args = {src, rois, 'method', 'max', 'subdivisions', [7,7], 'transform', 1/16} ;
-roi_pool = Layer.create(@vl_nnroipool, args, largs{:}) ;
+args = {src, rois, 'method', 'Max', 'Subdivisions', [7,7], 'Transform', 1/16} ;
+roi_pool = Layer.create(@vl_nnroipool2, args, largs{:}) ;
 tail = net.find('fc6',1) ; tail.inputs{1} = roi_pool ;
 
 % insert dropout layers
@@ -159,7 +160,8 @@ bbox_pred = add_block(drop7, 'bbox_pred', opts, sz, 0, largs{:}) ;
 
 % r-cnn losses
 largs = {'name', 'loss_cls', 'numInputDer', 1} ;
-loss_cls = Layer.create(@vl_nnloss, {cls_score, labels}, largs{:}) ;
+args = {cls_score, labels, 'instanceWeights', cw} ;
+loss_cls = Layer.create(@vl_nnloss, args, largs{:}) ;
 
 weighting = {'insideWeights', bbox_in_w, 'outsideWeights', bbox_out_w} ;
 args = [{bbox_pred, bbox_targets, 'sigma', 1}, weighting] ;
@@ -171,6 +173,8 @@ largs = {'name', 'multitask_loss'} ;
 multitask_loss = Layer.create(@vl_nnmultitaskloss, args, largs{:}) ;
 
 if 1 % init from caffe weights
+  multitask_loss.find('drop6', 1).inputs{3} = 0 ;
+  multitask_loss.find('drop7', 1).inputs{3} = 0 ;
   pVals = load('net.mat') ;
   fnames = fieldnames(pVals) ;
   for ff = 1:numel(fnames)
@@ -179,6 +183,10 @@ if 1 % init from caffe weights
     fname_ = fname(1:end-2) ;
     fprintf('updating %s:%d\n', fname_, pNum) ;
     order = [3 4 2 1] ;
+    %if contains(fname, 'pool5')
+      %tmp = pVals.(fname) ;
+      %tmp = reshape(tmp, 7,7,[], size(tmp)) ;
+      %newVal = permute(tmp, [2 1 3 4]) ;
     if contains(fname, 'rpn') 
       newVal = permute(pVals.(fname), order) ;
       rpn_multitask_loss.find(fname_, 1).inputs{pNum}.value = newVal ;
