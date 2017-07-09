@@ -81,9 +81,9 @@ function [l, t, iw, ow, cw] = vl_nnanchortargets(x, gb, imInfo, varargin)
     numNeg = opts.rpnBatchSize - sum(labels == opts.posLabel) ;
     bgInds = find(labels == opts.negLabel) ; excess = numel(bgInds) - numNeg ;
     if excess > 0 
-      %dropIdx = bgInds(randsample(numel(bgInds), excess)) ;
+      dropIdx = bgInds(randsample(numel(bgInds), excess)) ;
       % temp fix to numerically reproduce python code
-      tmp = load('drops.mat') ; dropIdx = tmp.drops + 1 ;
+      %tmp = load('drops.mat') ; dropIdx = tmp.drops + 1 ;
       labels(dropIdx) = opts.ignoreLabel ;
     end
 

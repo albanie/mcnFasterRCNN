@@ -1,12 +1,13 @@
 function net = faster_rcnn_init(opts, varargin)
 % FASTER_RCNN_INIT Initialize a Faster R-CNN Detector Network
-DEBUG = 0 ;
+%DEBUG = 0 ;
+numChecks = 0 ;
 
-if DEBUG
-  net = load('cNet.mat') ; 
-  net = Net(net) ;
-  return
-end
+%if DEBUG
+  %net = load('cNet.mat') ; 
+  %net = Net(net) ;
+  %return
+%end
 
 modelName = opts.modelOpts.architecture ;
 modelDir = fullfile(vl_rootnn, 'data/models-import') ;
@@ -53,25 +54,14 @@ net.removeLayer('fc8') ; net.removeLayer('prob') ; net.renameVar('x0', 'data') ;
 rng(0) ; % for reproducibility, fix the seed
 
 % configure autonn inputs
-%data = Input('data') ; 
 gtBoxes = Input('gtBoxes') ; 
-gtLabels = Input('gtLabels') ; imInfo = Input('imInfo') ;
-%epoch = Input('epoch') ; % epoch only used for tukey/mAP
+gtLabels = Input('gtLabels') ; 
+imInfo = Input('imInfo') ;
 
 if opts.modelOpts.batchRenormalization % additional input for batch renorm
   clips = Input('clips') ; opts.clips = clips ;
   LR = {'learningRate', [2 1 opts.modelOpts.alpha]} ;opts.renormLR = LR ; 
 end
-
-%mNet = load('data/models-import/faster-rcnn-vggvd-pascal.mat') ;
-%mDag = dagnn.DagNN.loadobj(mNet) ;
-%nDag = net ;
-
-%for ii = 1:numel(mDag.layers)
-  %if ii > numel(nDag.layers), l = '-' ; else, l = nDag.layers(ii).name ; end
-  %fprintf('nDag layer name: %s\n', l) ;
-  %fprintf('mDag layer name: %s\n', mDag.layers(ii).name) ;
-%end
 
 % convert to autonn
 stored = Layer.fromDagNN(net) ; net = stored{1} ; % convert to autonn
@@ -95,12 +85,9 @@ args = {rpn_cls, [0 -1 c 0]} ;
 rpn_cls_reshape = Layer.create(@vl_nnreshape, args, largs{:}) ;
 
 args = {rpn_cls, gtBoxes, imInfo} ; % note: first input used to determine shape
+largs = {'name', 'anchor_targets', 'numInputDer', 0} ;
 [rpn_labels, rpn_bbox_targets, rpn_iw, rpn_ow, rpn_cw] = ...
-                 Layer.create(@vl_nnanchortargets, args) ;
-rpn_labels.name = 'rpn_labels' ;
-%rpn_bbox_targets.name = 'rpn_bbox_targets' ;
-%rpn_in_w.name = 'rpn_bbox_inside_weights' ;
-%rpn_out.name = 'rpn_bbox_outside_weights' ;
+                          Layer.create(@vl_nnanchortargets, args, largs{:}) ;
 
 % rpn losses
 args = {rpn_cls_reshape, rpn_labels, 'instanceWeights', rpn_cw} ;
@@ -117,37 +104,37 @@ largs = {'name', 'rpn_multitask_loss'} ;
 rpn_multitask_loss = Layer.create(@vl_nnmultitaskloss, args, largs{:}) ;
 
 % RoI proposals 
-largs = {'name', 'rpn_cls_prob'} ;
+largs = {'name', 'rpn_cls_prob', 'numInputDer', 0} ;
 rpn_cls_prob = Layer.create(@vl_nnsoftmax, {rpn_cls_reshape}, largs{:}) ;
 
 args = {rpn_cls_prob, [0 -1 numAnchors*c 0]} ; 
-largs = {'name', 'rpn_cls_prob_reshape'} ; 
+largs = {'name', 'rpn_cls_prob_reshape', 'numInputDer', 0} ; 
 rpn_cls_prob_reshape = Layer.create(@vl_nnreshape, args, largs{:}) ;
 
 proposalConf = {'postNMSTopN', 2000, 'preNMSTopN', 12000} ;
 featOpts = [{'featStride', opts.modelOpts.featStride}, proposalConf] ;
 args = {rpn_cls_prob_reshape, rpn_bbox_pred, imInfo, featOpts{:}} ; %#ok
-largs = {'name', 'proposals'} ; 
+largs = {'name', 'proposals', 'numInputDer', 0} ; 
 proposals = Layer.create(@vl_nnproposalrpn, args, largs{:}) ;
 
 args = {proposals, gtBoxes, gtLabels, 'numClasses', opts.modelOpts.numClasses} ;
-largs = {'name', 'roi_data', 'numInputDer', 1} ;
+largs = {'name', 'roi_data', 'numInputDer', 0} ;
 [rois, labels, bbox_targets, bbox_in_w, bbox_out_w, cw] = ...
                  Layer.create(@vl_nnproposaltargets, args, largs{:}) ;
 
 % reattach fully connected layers following roipool
-largs = {'name', 'roi_pool5'} ;
+largs = {'name', 'roi_pool5', 'numInputDer', 1} ;
 args = {src, rois, 'method', 'Max', 'Subdivisions', [7,7], 'Transform', 1/16} ;
 roi_pool = Layer.create(@vl_nnroipool2, args, largs{:}) ;
 tail = net.find('fc6',1) ; tail.inputs{1} = roi_pool ;
 
 % insert dropout layers
-relu6 = net.find('relu6', 1) ; largs = {'name', 'drop6'} ;
-drop6 = Layer.create(@vl_nndropout, {relu6, 'rate' 0.5}, largs{:}) ;
+relu6 = net.find('relu6', 1) ;
+drop6 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop6' ;
 tail = net.find('fc7',1) ; tail.inputs{1} = drop6 ;
 
-relu7 = net.find('relu7', 1) ; largs = {'name', 'drop7'} ;
-drop7 = Layer.create(@vl_nndropout, {relu7, 'rate' 0.5}, largs{:}) ;
+relu7 = net.find('relu7', 1) ;
+drop7 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop7' ;
 
 % final predictions
 largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;
@@ -172,7 +159,7 @@ args = {loss_cls, loss_bbox, 'locWeight', opts.modelOpts.locWeight} ;
 largs = {'name', 'multitask_loss'} ;
 multitask_loss = Layer.create(@vl_nnmultitaskloss, args, largs{:}) ;
 
-if 1 % init from caffe weights
+if numChecks % init from caffe weights
   multitask_loss.find('drop6', 1).inputs{3} = 0 ;
   multitask_loss.find('drop7', 1).inputs{3} = 0 ;
   pVals = load('net.mat') ;
@@ -198,11 +185,11 @@ if 1 % init from caffe weights
       multitask_loss.find(fname_, 1).inputs{pNum}.value = newVal ;
     end
   end
+  net = Net(rpn_multitask_loss, multitask_loss) ;
+  net_ = net.saveobj() ; save('cNet.mat', '-struct', 'net_') ;
 end
 
 net = Net(rpn_multitask_loss, multitask_loss) ;
-net_ = net.saveobj() ; save('cNet.mat', '-struct', 'net_') ;
-keyboard
 
 % ---------------------------------------------------------------------
 function net = add_block(net, name, opts, sz, nonLinearity, varargin)

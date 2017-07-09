@@ -1,7 +1,6 @@
 function batchData = faster_rcnn_train_get_batch(imdb, batch, bopts, varargin)
-% SSD_TRAIN_GET_BATCH generates mini batches for training faster r-cnn
-
-DEBUG = 1 ; % force flip
+% SSD_TRAIN_GET_BATCH generates mini batches for training faster r-cnn 
+DEBUG = 0 ; % force flip
 
 imNames = imdb.images.name(batch) ; imPathTemplates = imdb.images.paths(batch) ;
 imPaths = cellfun(@(x,y) sprintf(x, y), imPathTemplates, imNames, 'Uni', 0) ;
@@ -12,9 +11,7 @@ labels = cellfun(@(x) single(x.classes), annotations, 'UniformOutput', false) ;
 imsz = double(imdb.images.imageSizes{batch}) ;
 maxSc = bopts.maxScale ; factor = max(bopts.scale ./ imsz) ; 
 if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
-data = single(zeros([imInfo(1:2) 3 numel(batch)])) ;
-RGB = [122.7717, 115.9465, 102.9801] ; % follow girshick here
+newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ; data = single(zeros([imInfo(1:2) 3 numel(batch)])) ; RGB = [122.7717, 115.9465, 102.9801] ; % follow girshick here
 imMean = permute(RGB, [3 1 2]) ;
 
 % randomly generate resize methods
@@ -119,7 +116,7 @@ for i = 1:numel(batch)
 end
 
 if bopts.useGpu, data = gpuArray(data) ; end
-if bopts.debug, viz_get_batch(data, labels, targets) ; end
+%if bopts.debug, viz_get_batch(data, labels, targets) ; end
 
 batchData = {'data', data, 'gtLabels', labels, ...
              'gtBoxes', targets, 'imInfo', imInfo} ;

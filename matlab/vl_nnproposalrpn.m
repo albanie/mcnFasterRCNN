@@ -10,14 +10,13 @@ opts.postNMSTopN = 300 ; % often 300 for test, 2000 for training
 opts.preNMSTopN = 6000 ; % often 6000 for test, 12000 for training
 opts.filterSmallProposals = true ;
 opts.nmsThresh = 0.7 ;
-opts = vl_argparse(opts, varargin, 'nonrecursive') ;
+[opts, dzdy] = vl_argparsepos(opts, varargin, 'nonrecursive') ;
 
 % numerical checking
-numChecks = 1 ;
+numChecks = 0 ;
 
-if ~isempty(opts.fixed)
-  y = opts.fixed ; return ;
-end
+if ~isempty(opts.fixed), y = opts.fixed ; return ; end
+if ~isempty(dzdy), assert('this layer is a one way street') ; end
 
 anchors = generateAnchors(opts) ;
 numAnchors = size(anchors, 1) ;

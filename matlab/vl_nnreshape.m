@@ -42,7 +42,7 @@ end
 batchSize = size(x, 4);
 
 if isempty(dzdy)
-    y = reshape(x, shape{1}, shape{2}, shape{3}, batchSize) ;
+  y = reshape(x, shape{1}, shape{2}, shape{3}, batchSize) ;
 else
-    y = reshape(dzdy{1}, size(x)) ;
+  y = reshape(dzdy{1}, size(x)) ;
 end

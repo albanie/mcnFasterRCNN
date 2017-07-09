@@ -1,7 +1,7 @@
 function faster_rcnn_pascal_train(varargin)
 
 opts.gpus = 3 ;
-opts.debug = 0 ; 
+opts.debug = 1 ; 
 opts.continue = true ;
 opts.confirmConfig = false ;
 opts.architecture = 'vgg16' ;
@@ -19,7 +19,9 @@ train.gpus = opts.gpus ;
 train.continue = opts.continue ;
 train.parameterServer.method = 'tmove' ;
 train.numSubBatches = ceil(4 / max(numel(train.gpus), 1)) ;
-train.derOutputs = {'multitask_loss', 1} ;
+train.derOutputs = 1 ; % give each loss the same weight
+train.stats = {'rpn_loss_cls', 'rpn_loss_bbox', 'rpn_multitask_loss', ...
+              'loss_cls', 'loss_bbox', 'multitask_loss'} ; % train end to end
 
 % configure dataset options
 dataOpts.name = 'pascal' ;
@@ -51,27 +53,27 @@ modelOpts.batchNormalization = false ;
 modelOpts.batchRenormalization = false ;
 modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
 
-
 % Set learning rates
-warmup = 0.0001 ;
 steadyLR = 0.001 ;
 gentleLR = 0.0001 ;
 vGentleLR = 0.00001 ;
 
-if dataOpts.zoomAugmentation
-    numSteadyEpochs = 155 ;
-    numGentleEpochs = 38 ;
-    numVeryGentleEpochs = 38 ;
+% this should correspond (approximately) to the 70,000 iterations 
+% used in the original model (when zoom aug is not used)
+if dataOpts.zoomAugmentation 
+    numSteadyEpochs = 20 ;
+    numGentleEpochs = 8 ;
+    numVeryGentleEpochs = 8 ;
 else
-    numSteadyEpochs = 75 ;
-    numGentleEpochs = 35 ;
+    numSteadyEpochs = 10 ;
+    numGentleEpochs = 4 ;
     numVeryGentleEpochs = 0 ;
 end
 
 steady = steadyLR * ones(1, numSteadyEpochs) ;
 gentle = gentleLR * ones(1, numGentleEpochs) ;
 veryGentle = vGentleLR * ones(1, numVeryGentleEpochs) ;
-train.learningRate = [warmup steady gentle veryGentle] ;
+train.learningRate = [steady gentle veryGentle] ;
 train.numEpochs = numel(train.learningRate) ;
 
 % configure batch opts
@@ -145,9 +147,4 @@ end
 opts.train.val = find(imdb.images.set == 2) ;
 if opts.dataOpts.useValForTraining
     opts.train.train = find(imdb.images.set == 2 | imdb.images.set == 1) ;
-end
-
-if 1
-  idx = find(strcmp('007054', imdb.images.name)) ;
-  opts.train.train = idx ;
 end

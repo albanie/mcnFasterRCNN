@@ -35,9 +35,9 @@ function [labels, rois, targets, iw] = sampleRois(allRois, gtBoxes, ...
 % and background
 
 fgRoisPerImage = round(opts.fgRatio * roisPerImage) ;
-overlaps = bbox_overlap(allRois(:,2:end), gtBoxes) ;
+overlaps = bbox_overlap(gather(allRois(:,2:end)), gtBoxes) ; % run on CPU
 [maxOverlaps, gtI] = max(overlaps, [], 2) ;
-labels = gtLabels(gtI,:) ;
+labels = reshape(gtLabels(gtI), 1, []) ; % ensure 1xn shape for single labels
 
 fgInds = find(maxOverlaps >= opts.fgThresh) ;
 % prevent issue caused by fgRoisPerImage < numel(fgInds)
@@ -46,8 +46,8 @@ numFgRois = min(fgRoisPerImage, numel(fgInds)) ;
 if numel(fgInds) > 0
   fgInds = fgInds(randsample(numel(fgInds), numFgRois)) ;
   % temp fix to numerically reproduce python code
-  tmp = load('fg_inds.mat') ; 
-  fgInds = tmp.inds + 1 ;
+  %tmp = load('fg_inds.mat') ; 
+  %fgInds = tmp.inds + 1 ;
 end
 
 % pick bg rois that lie inside the threshold interval
@@ -58,11 +58,11 @@ numBgRois = min(numBgRois, numel(bgInds)) ;
 if numel(bgInds) > 0
   bgInds = bgInds(randsample(numel(bgInds), numBgRois)) ;
   % temp fix to numerically reproduce python code
-  tmp = load('bg_inds.mat') ; 
-  bgInds = tmp.inds + 1 ;
+  %tmp = load('bg_inds.mat') ; 
+  %bgInds = tmp.inds + 1 ;
 end
 
-keep = [fgInds bgInds] ;
+keep = [fgInds ; bgInds] ;
 labels = labels(keep) ;
 labels(numFgRois+1:end) = opts.negLabel ; % set labels to bg
 rois = allRois(keep,:) ;
@@ -78,7 +78,7 @@ function targetData = computeTargets(rois, gtBoxes, labels, opts)
     centered = bsxfun(@minus, targets, opts.normalizeMeans) ;
     targets = bsxfun(@rdivide, centered, opts.normalizeStdDevs) ;  
   end
-  targetData = [labels targets] ;
+  targetData = [labels' targets] ;
 
 % --------------------------------------------------------------
 function [targets,iw] = getBboxRegressionLabels(targetData, opts) 
@@ -91,7 +91,7 @@ function [targets,iw] = getBboxRegressionLabels(targetData, opts)
 % Returns an 1 1 x (4*numClasses) x N array of regression targets (where only
 % the ground truth class takes non-zero target values
   classes = targetData(:,1) ;
-  targets = zeros(1,1,4 * opts.numClasses, numel(classes)) ;
+  targets = zeros(1,1,4 * opts.numClasses, numel(classes), 'like', targetData) ;
   iw = zeros(size(targets)) ;
   inds = find(classes ~= opts.bgClass) ;
   for ii = 1:numel(inds)
