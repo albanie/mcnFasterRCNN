@@ -52,18 +52,26 @@ end
 
 % Load the network and put it in test mode.
 net = load(opts.modelPath) ;
-net = dagnn.DagNN.loadobj(net);
-net.mode = 'test' ;
+if isfield('forward') % autonn
+  model = 'autonn' ;
+  net = Net(net) ;
+else
+  model = 'dag' ;
+  net = dagnn.DagNN.loadobj(net);
+  net.mode = 'test' ;
+end
 
 % Load test image
 imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/000456.jpg') ;
 im = single(imread(imPath)) ;
 
 % choose variables to track
-clsIdx = net.getVarIndex('cls_prob') ;
-bboxIdx = net.getVarIndex('bbox_pred') ;
-roisIdx = net.getVarIndex('rois') ;
-[net.vars([clsIdx bboxIdx roisIdx]).precious] = deal(true) ;
+if strcmp(model, 'dag')
+  clsIdx = net.getVarIndex('cls_prob') ;
+  bboxIdx = net.getVarIndex('bbox_pred') ;
+  roisIdx = net.getVarIndex('rois') ;
+  [net.vars([clsIdx bboxIdx roisIdx]).precious] = deal(true) ;
+end
 
 % resize to meet the standard faster r-cnn size criteria
 imsz = [size(im,1) size(im,2)] ; maxSc = opts.maxScale ; 
@@ -72,11 +80,18 @@ if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
 newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
 data = imresize(im, factor, 'bilinear') ; 
 
-% run network and retrieve results
-net.eval({'data', data, 'im_info', imInfo}) ;
-probs = squeeze(net.vars(clsIdx).value) ;
-deltas = squeeze(net.vars(bboxIdx).value) ;
-boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
+if strcmp(mode, 'autonn')
+  in = {'data', data, 'im_info', imInfo} ; net.eval(in, 'forward') ;
+  probs = squeeze(net.getValue('cls_prob')) ;
+  deltas = squeeze(net.getValue('bbox_pred')) ;
+  props = net.getValue('proposal') ; boxes = props(2:end,:)' / imInfo(3) ;
+else
+  % run network and retrieve results
+  net.eval({'data', data, 'im_info', imInfo}) ;
+  probs = squeeze(net.vars(clsIdx).value) ;
+  deltas = squeeze(net.vars(bboxIdx).value) ;
+  boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
+end
 
 % Visualize results for one class at a time
 for i = 2:numel(opts.classes)

@@ -55,7 +55,8 @@ function [l, t, iw, ow, cw] = vl_nnanchortargets(x, gb, imInfo, varargin)
     overlaps = bbox_overlap(gtBoxes, anchors) ;
     [maxOverlaps, mI] = max(overlaps, [], 1) ; % dim must be written explicitly
     [gtMaxOverlaps, ~] = max(overlaps, [], 2) ;
-    [~,gtI] = find(overlaps == gtMaxOverlaps) ;
+    [~,~,ib] = intersect(gtMaxOverlaps, overlaps, 'stable') ; 
+    [~,gtI] = ind2sub(size(overlaps),ib) ; % approx 50% faster than using find()
 
     if ~opts.clobberPositives 
       labels(maxOverlaps < opts.rpnNegativeOverlap) = opts.negLabel ;

@@ -66,6 +66,20 @@ proposals = proposals(sIdx,:) ; scores = scores(sIdx) ;
 cpuData = gather([proposals scores]) ; % faster on CPU
 keep = bbox_nms(cpuData, opts.nmsThresh) ;
 
+%if isa(proposals, 'gpuArray')
+  %% FIX LATER: keep = vl_nms([proposals scores]) ; % run nms on gpu
+  %cpuData = gather([proposals scores]) ; % faster on CPU
+  %keep = bbox_nms(cpuData, opts.nmsThresh) ;
+%else
+  %keep = bbox_nms(cpuData, opts.nmsThresh) ;
+%end
+%if 0 
+  %cpuData = gather([proposals scores]) ; % faster on CPU
+  %keep = bbox_nms(cpuData, opts.nmsThresh) ;
+%else
+  %keep = bbox_nms([proposals scores], opts.nmsThresh) ;
+%end
+
 if opts.postNMSTopN, keep = keep(1:min(numel(keep), opts.postNMSTopN)) ; end
 
 if numChecks 

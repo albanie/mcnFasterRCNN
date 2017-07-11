@@ -1,8 +1,8 @@
 function faster_rcnn_pascal_train(varargin)
 
 opts.gpus = 3 ;
-opts.debug = 1 ; 
-opts.continue = true ;
+opts.debug = 0 ; 
+opts.continue = 0 ;
 opts.confirmConfig = false ;
 opts.architecture = 'vgg16' ;
 opts.pruneCheckpoints = true ;
@@ -54,7 +54,7 @@ modelOpts.batchRenormalization = false ;
 modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
 
 % Set learning rates
-steadyLR = 0.001 ;
+steadyLR = 0.00001 ;
 gentleLR = 0.0001 ;
 vGentleLR = 0.00001 ;
 
@@ -136,9 +136,9 @@ function [opts, imdb] = prepareImdb(imdb, opts)
 % set path to VOC 2007 devkit directory 
 switch opts.dataOpts.trainData
     case '07' % to restrict to 2007, remove training 2012 data
-        imdb.images.set(imdb.images.year == 2012 & imdb.images.set == 1) = -1 ;
+        imdb.images.set(imdb.images.year == 2012) = -1 ;
     case '12' % to restrict to 2012, remove 2007 training data
-        imdb.images.set(imdb.images.year == 2007 & imdb.images.set == 1) = -1 ;
+        imdb.images.set(imdb.images.year == 2007) = -1 ;
     case '0712' % do nothing
     otherwise
         error('Training data %s not recognized', opts.dataOpts.trainData) ;
@@ -147,4 +147,11 @@ end
 opts.train.val = find(imdb.images.set == 2) ;
 if opts.dataOpts.useValForTraining
     opts.train.train = find(imdb.images.set == 2 | imdb.images.set == 1) ;
+end
+
+if 0 
+  opts.train.train = 1:20 ;
+  opts.train.val = 21:30 ;
+  opts.train.numEpochs = 1 ;
+  opts.train.continue = 0 ;
 end

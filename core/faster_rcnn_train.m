@@ -17,10 +17,10 @@ fprintf('finished loading imdb\n') ;
 if ~exist(expDir, 'dir'), mkdir(expDir) ; end
 confirmConfig(expDir, opts) ;
 net = opts.modelOpts.net_init(opts) ;
+
 [~,~] = cnn_train_autonn(net, imdb, ...
                     @(i,b) opts.modelOpts.get_batch(i, b, opts.batchOpts), ...
                     opts.train, 'expDir', expDir) ;
-
 
 % evaluate network
 [net, modelName] = deployModel(expDir, opts) ;

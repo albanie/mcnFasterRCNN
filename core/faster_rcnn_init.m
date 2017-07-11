@@ -31,7 +31,7 @@ end
 
 if ~exist(trunkPath, 'file')
   fprintf('%s not found, downloading... \n', opts.modelOpts.architecture) ;
-  mkdir(fileparts(opts.modelPath)) ; urlwrite(trunkUrl, trunkPath) ;
+  mkdir(fileparts(trunkPath)) ; urlwrite(trunkUrl, trunkPath) ;
 end
 
 net = vl_simplenn_tidy(load(trunkPath)) ; net = dagnn.DagNN.fromSimpleNN(net) ;
@@ -114,7 +114,7 @@ rpn_cls_prob_reshape = Layer.create(@vl_nnreshape, args, largs{:}) ;
 proposalConf = {'postNMSTopN', 2000, 'preNMSTopN', 12000} ;
 featOpts = [{'featStride', opts.modelOpts.featStride}, proposalConf] ;
 args = {rpn_cls_prob_reshape, rpn_bbox_pred, imInfo, featOpts{:}} ; %#ok
-largs = {'name', 'proposals', 'numInputDer', 0} ; 
+largs = {'name', 'proposal', 'numInputDer', 0} ; 
 proposals = Layer.create(@vl_nnproposalrpn, args, largs{:}) ;
 
 args = {proposals, gtBoxes, gtLabels, 'numClasses', opts.modelOpts.numClasses} ;
@@ -134,7 +134,7 @@ drop6 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop6' ;
 tail = net.find('fc7',1) ; tail.inputs{1} = drop6 ;
 
 relu7 = net.find('relu7', 1) ;
-drop7 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop7' ;
+drop7 = vl_nndropout(relu7, 'rate', 0.5) ; drop6.name = 'drop7' ;
 
 % final predictions
 largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;
