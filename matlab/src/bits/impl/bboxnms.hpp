@@ -13,7 +13,7 @@ the terms of the BSD license (see the COPYING file).
 #ifndef VL_BBOXNMS_H
 #define VL_BBOXNMS_H
 
-#include <bits/data.hpp>
+#include "../data.hpp"
 #include <cstddef>
 
 // defines the dispatcher for CUDA kernels:
@@ -26,10 +26,12 @@ namespace vl { namespace impl {
     forward(Context& context,
             T* output,
             T const* boxes,
-            int overlap,
+            float overlap,
             size_t num_boxes) ;
-  } ;
 
-} }
+  } ;
+} 
+
+}
 
 #endif /* defined(VL_BBOXNMS_H) */

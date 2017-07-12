@@ -14,7 +14,7 @@ the terms of the BSD license (see the COPYING file).
 #include "impl/bboxnms.hpp"
 
 #if ENABLE_GPU
-#include <bits/datacu.hpp>
+#include "datacu.hpp"
 #endif
 
 #include <cstdio>
@@ -27,12 +27,11 @@ using namespace vl ;
 /* ---------------------------------------------------------------- */
 
 #define DISPATCH(deviceType,T) \
-error = vl::impl::bboxnms<deviceType,T>::forward \
-(context, \
+error = vl::impl::bboxnms<deviceType,T>::forward (context, \
 (T*) output.getMemory(), \
 (T const*) boxes.getMemory(), \
-overlap, \
-boxes.getHeight()) ;
+(float) overlap, \
+(size_t) boxes.getHeight()) ;
 
 #define DISPATCH2(deviceType) \
 switch (dataType) { \
@@ -53,7 +52,7 @@ vl::nnbboxnms_forward(vl::Context& context,
   vl::ErrorCode error = VLE_Success ;
   vl::DataType dataType = boxes.getDataType() ;
   
-  switch (dataType)
+  switch (boxes.getDeviceType())
   {
     case vl::VLDT_CPU:
       DISPATCH2(vl::VLDT_CPU) ;

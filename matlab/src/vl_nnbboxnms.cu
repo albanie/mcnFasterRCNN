@@ -13,7 +13,7 @@ the terms of the BSD license (see the COPYING file).
 
 #include <bits/mexutils.h>
 #include <bits/datamex.hpp>
-#include "bits/nnbboxnms.hpp"
+#include <bits/nnbboxnms.hpp>
 
 #if ENABLE_GPU
 #include <bits/datacu.hpp>
@@ -112,7 +112,6 @@ void mexFunction(int nout, mxArray *out[],
     mexPrintf("vl_nnbboxnms: mode %s; %s\n",  
             (boxes.getDeviceType()==vl::VLDT_GPU)?"gpu":"cpu", "forward") ;
         vl::print("vl_nnbboxnms: boxes: ", boxes) ;
-       // mexPrintf("vl_nnbboxnms: overlap: %d\n", overlap) ;
         vl::print("vl_nnbboxnms: output: ", output) ;
       }
       /* -------------------------------------------------------------- */

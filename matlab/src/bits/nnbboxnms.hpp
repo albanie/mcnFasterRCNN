@@ -12,7 +12,7 @@ the terms of the BSD license (see the COPYING file).
 #ifndef __vl__nnbboxnms__
 #define __vl__nnbboxnms__
 
-#include <bits/data.hpp>
+#include "data.hpp"
 #include <stdio.h>
 
 namespace vl {
