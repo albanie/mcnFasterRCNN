@@ -28,7 +28,7 @@ using namespace vl ;
 
 #define DISPATCH(deviceType,T) \
 error = vl::impl::bboxnms<deviceType,T>::forward (context, \
-(T*) output.getMemory(), \
+output, \
 (T const*) boxes.getMemory(), \
 (float) overlap, \
 (size_t) boxes.getWidth()) ;
@@ -45,7 +45,7 @@ return VLE_Unknown ; \
 
 vl::ErrorCode
 vl::nnbboxnms_forward(vl::Context& context,
-                      vl::Tensor output,
+                      std::vector<int> &output,
                       vl::Tensor boxes,
                       float overlap)
 {

@@ -15,6 +15,7 @@ the terms of the BSD license (see the COPYING file).
 
 #include "../data.hpp"
 #include <cstddef>
+#include <vector>
 
 // defines the dispatcher for CUDA kernels:
 namespace vl { namespace impl {
@@ -24,7 +25,7 @@ namespace vl { namespace impl {
 
     static vl::ErrorCode
     forward(Context& context,
-            T* output,
+            std::vector<int> &output,
             T const* boxes,
             float overlap,
             size_t num_boxes) ;

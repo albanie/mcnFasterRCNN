@@ -15,9 +15,7 @@ boxes2 = boxes' ;
 bb = bboxCoder(boxes, 'MinMax', 'MinWH') ; areas = prod(bb(:,[3 4]), 2) ;
 %disp(areas) ;
 
-keyboard
 inBoxes = single(boxes)' ;
-%inBoxes = single(1) ;
 pick2 = vl_nnbboxnms(inBoxes, overlap) ;
 
 fprintf('num pick1 %d \n', numel(pick1)) ;
