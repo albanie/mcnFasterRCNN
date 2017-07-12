@@ -11,7 +11,7 @@ the terms of the BSD license (see the COPYING file).
 */
 
 
-#include <bits/mexutils.h>
+#include "bits/mexutils.h"
 #include <bits/datamex.hpp>
 #include <bits/nnbboxnms.hpp>
 
@@ -77,6 +77,7 @@ void mexFunction(int nout, mxArray *out[],
 
   // backwards mode is not yet supported for nms
   next = 2 ;
+  mexPrintf("entering\n") ;
 
   while ((opt = vlmxNextOption (in, nin, options, &next, &optarg)) >= 0) {
     switch (opt) {
@@ -89,18 +90,26 @@ void mexFunction(int nout, mxArray *out[],
     }
   }
 
-  vl::MexTensor boxes(context) ;
-
-  boxes.init(in[IN_BOXES]) ;
-  boxes.reshape(2) ;
-
+  // mexPrintf("overlap fetching\n") ;
   float overlap = (float)mxGetScalar(in[IN_OVERLAP]) ;
 
+  vl::MexTensor boxes(context) ;
+  /*mexPrintf("IN pos%d\n", IN_BOXES) ;*/
+  /*printf("variable in is at address: %p\n", (void*)&in);*/
+
+  /*mexPrintf("box selection\n") ;*/
+  boxes.init(in[IN_BOXES]) ;
+  /*mexPrintf("box reshaping\n") ;*/
+  boxes.reshape(2) ;
+
+
   /* check for appropriate input box shape */
-  int box_dims = boxes.getWidth() ;
+  int box_dims = boxes.getHeight() ;
+  /*mexPrintf("box_dims %d\n", box_dims) ;*/
   if (box_dims != 5) {
-    vlmxError(VLMXE_IllegalArgument, "BOXES should have shape N x 5.") ;
+    vlmxError(VLMXE_IllegalArgument, "BOXES should have shape 5 x N.") ;
   }
+  /*mexPrintf("box dims %d\n", box_dims) ;*/
 
   /* Create output buffers */
   vl::MexTensor output(context) ;

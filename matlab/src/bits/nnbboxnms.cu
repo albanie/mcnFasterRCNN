@@ -31,7 +31,7 @@ error = vl::impl::bboxnms<deviceType,T>::forward (context, \
 (T*) output.getMemory(), \
 (T const*) boxes.getMemory(), \
 (float) overlap, \
-(size_t) boxes.getHeight()) ;
+(size_t) boxes.getWidth()) ;
 
 #define DISPATCH2(deviceType) \
 switch (dataType) { \
@@ -55,6 +55,7 @@ vl::nnbboxnms_forward(vl::Context& context,
   switch (boxes.getDeviceType())
   {
     case vl::VLDT_CPU:
+      printf("cpu version running\n") ;
       DISPATCH2(vl::VLDT_CPU) ;
       break ;
 
