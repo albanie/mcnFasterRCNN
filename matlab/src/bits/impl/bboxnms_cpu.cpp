@@ -1,5 +1,6 @@
 // @file bboxnms_cpu.cu
-// @brief Bounding Box non maximum supression, based // on Shaoqing Ren's Faster R-CNN implementation which 
+// @brief Bounding Box non maximum supression, based 
+// on Shaoqing Ren's Faster R-CNN implementation which 
 // can be found here: 
 // https://github.com/ShaoqingRen/faster_rcnn/blob/master/functions/nms
 // @author Samuel Albanie
@@ -13,306 +14,17 @@ the terms of the BSD license (see the COPYING file).
 */
 
 #include "bboxnms.hpp"
-#include <bits/data.hpp>
+#include "../data.hpp"
 #include <assert.h>
 #include <float.h>
 #include <cstdio>
 #include <algorithm>
 #include <math.h>
 #include <string.h>
+#include <bits/mexutils.h>
 
 #include <map>
 #include <vector>
-
-/* ------------------------------------------------------------ */
-/*                                                       useful */
-/* ------------------------------------------------------------ */
-
-//template <typename T>
-//bool sortScorePairDescend(const std::pair<float, T>& pairA,
-                          //const std::pair<float, T>& pairB) {
-    //return pairA.first > pairB.first ;
-//}
-
-//typedef struct NormalizedBox {
-    //float xmin ;
-    //float ymin ;
-    //float xmax ;
-    //float ymax ;
-    //int label ;
-    //bool difficult ;
-    //float score ;
-    //float size ;
-//} NormalizedBox ;
-
-//typedef std::vector<NormalizedBox> BoxVector ;
-//typedef std::map<int, BoxVector> Label2BoxesMap ;
-//typedef std::map<int, std::vector<float> > Label2ScoreMap ;
-//typedef std::map<int, std::vector<int> > Label2PriorIndexMap ;
-//typedef std::map<int, std::vector<int> >::iterator indexIter ;
-
-//void getIntersection(const NormalizedBox &boxA, 
-                     //const NormalizedBox &boxB,
-                     //NormalizedBox* intersection) 
-//{
-    //// The intersection is computed as a box
-    //if (boxB.xmin > boxA.xmax || boxB.xmax < boxA.xmin ||
-        //boxB.ymin > boxA.ymax || boxB.ymax < boxA.ymin) {
-      //// Return [0, 0, 0, 0] if there is no intersection.
-      //intersection->xmin = 0 ;
-      //intersection->ymin = 0 ;
-      //intersection->xmax = 0 ;
-      //intersection->ymax = 0 ;
-    //} else {
-      //intersection->xmin = std::max(boxA.xmin, boxB.xmin) ;
-      //intersection->ymin = std::max(boxA.ymin, boxB.ymin) ;
-      //intersection->xmax = std::min(boxA.xmax, boxB.xmax) ;
-      //intersection->ymax = std::min(boxA.ymax, boxB.ymax) ;
-    //}
-//}
-
-//float getBoxSize(const NormalizedBox box) 
-//{
-    //float width = box.xmax - box.xmin ;
-    //float height = box.ymax - box.ymin ;
-    //if (width < 0 || height < 0) {
-        //return 0 ;
-    //} else {
-        //return width * height ;
-    //}
-//}
-
-//void getMaxScoreIndex(const std::vector<float>& scores, 
-                      //const float thresh,
-                      //const int topK, 
-                      //std::vector<std::pair<float, int>> *scoreIndexPairs) 
-//{
-    //// generate index score pairs for sufficiently high scores
-    //for (int i = 0; i < scores.size(); ++i) {
-        //if (scores[i] > thresh) {
-            //scoreIndexPairs->push_back(std::make_pair(scores[i], i)) ;
-        //}
-    //}
-
-    //// sort the score pair according to the scores in descending order
-    //std::stable_sort(scoreIndexPairs->begin(), scoreIndexPairs->end(), 
-                                       //sortScorePairDescend<int>) ;
-
-    ////printf("num boxes after conf threshold: %d \n", scoreIndexPairs->size()) ;
-    //// Keep top k scores if needed.
-    //if (topK > -1 && topK < scoreIndexPairs->size()) {
-      //scoreIndexPairs->resize(topK) ;
-    //}
-    ////printf("num boxes after conf threshold & topk: %d \n", scoreIndexPairs->size()) ;
-//}
-
-//float jaccardOverlap(const NormalizedBox &boxA, 
-                     //const NormalizedBox &boxB) 
-//{
-    //NormalizedBox intersection;
-    //getIntersection(boxA, boxB, &intersection);
-    //float width = intersection.xmax - intersection.xmin ;
-    //float height = intersection.ymax - intersection.ymin ;
-    //if (width > 0 && height > 0) {
-        //float intersectArea = width * height;
-        //float unionArea = getBoxSize(boxA) + getBoxSize(boxB) - intersectArea ;
-        //return intersectArea / unionArea ;
-    //} else {
-        //return 0.;
-    //}
-//}
-
-//void applyFastNMS(const BoxVector &boxes,
-                  //const std::vector<float>& scores, 
-                  //const float confThresh,
-                  //const float nmsThresh, 
-                  //const int keepTopK,
-                  //std::vector<int> *indices) 
-//{
-    //assert(boxes.size() == scores.size()) ;
-
-    //// retrieve top k scores (with corresponding indices).
-    //std::vector<std::pair<float, int>> scoreIndexPairs ;
-    //getMaxScoreIndex(scores, confThresh, keepTopK, &scoreIndexPairs) ;
-
-    //// run the nms - note we don't use adaptive NMS here
-    //int eta = 1 ;
-    //float adaptiveThresh = nmsThresh ;
-    //int numBoxes = boxes.size() ;
-    ////printf("num boxes total %d \n", numBoxes) ;
-    ////printf("num filtered boxes after thresh %d \n", scoreIndexPairs.size()) ;
-    //indices->clear() ;
-    //while (scoreIndexPairs.size() != 0) {
-        //const int idx = scoreIndexPairs.front().second ;
-        //bool keep = true ;
-        //for (int k = 0 ; k < indices->size() ; ++k) {
-            //if (keep) {
-                //const int keptIdx = (*indices)[k] ;
-                //float overlap = jaccardOverlap(boxes[idx], boxes[keptIdx]) ;
-                ////printf("overlap: %f \n", overlap) ;
-                //keep = overlap <= adaptiveThresh ;
-            //} else {
-                //break ;
-            //}
-        //}
-        //if (keep) {
-            //indices->push_back(idx) ;
-        //}
-        //scoreIndexPairs.erase(scoreIndexPairs.begin()) ;
-        //if (keep && eta < 1 && adaptiveThresh > 0.5) {
-            //adaptiveThresh *= eta ;
-        //}
-    //}
-    ////printf("num passing %d \n", indices->size()) ;
-//}
-
-//template <typename T>
-//void getConfScores(const T* confData, 
-                   //const int batchSize,
-                   //const int numPriors, 
-                   //const int numClasses,
-                   //std::vector<std::map<int, std::vector<float>>>* confPreds) 
-//{
-    //confPreds->clear();
-    //confPreds->resize(batchSize);
-    //for (int i = 0; i < batchSize; ++i) {
-        //std::map<int, std::vector<float>> &labelScores = (*confPreds)[i];
-        //for (int p = 0; p < numPriors; ++p) {
-            //int startIdx = p * numClasses;
-            //for (int c = 0; c < numClasses; ++c) {
-                //// MATLAB is column major ....
-                ////labelScores[c].push_back(confData[numPriors * c + p]);
-                //labelScores[c].push_back(confData[startIdx + c]);
-            //}
-        //}
-        //confData += numPriors * numClasses;
-    //}
-    ////printf("score batch 1 %f\n", (*confPreds)[0][0][0]) ;
-    ////printf("score batch 2 %f\n", (*confPreds)[1][0][0]) ;
-//}
-
-//template<typename T>
-//void getLocPreds(const T* locData, 
-                 //const int batchSize, 
-                 //const int numPriors, 
-                 //std::vector<std::map<int, std::vector<NormalizedBox>>> *locPreds) 
-//{
-    //locPreds->clear() ;
-    //locPreds->resize(batchSize) ;
-    //for (int i = 0 ; i < batchSize ; i++) {
-        //Label2BoxesMap &labelBox = (*locPreds)[i] ;
-        //for (int p = 0; p < numPriors; ++p) {
-            //int startIdx = p * 4 ;
-            //int label = -1 ; 
-            //if (labelBox.find(label) == labelBox.end()) {
-              //labelBox[label].resize(numPriors) ;
-            //}
-            //labelBox[label][p].xmin = locData[startIdx];
-            //labelBox[label][p].ymin = locData[startIdx + 1] ;
-            //labelBox[label][p].xmax = locData[startIdx + 2] ;
-            //labelBox[label][p].ymax = locData[startIdx + 3] ;
-        //}
-        //locData += numPriors * 4 ;
-    //}
-//}
-
-//template <typename T>
-//void getPriorBoxes(const T* priors, 
-                   //const int numPriors,
-                   //BoxVector* priorBoxes,
-                   //std::vector<std::vector<float>>* priorVars) 
-//{
-    //priorBoxes->clear() ;
-    //priorVars->clear() ;
-    //for (int p = 0; p < numPriors; ++p) {
-        //int startIdx = p * 4 ;
-        //NormalizedBox box ;
-        //box.xmin = priors[startIdx] ;
-        //box.ymin = priors[startIdx + 1] ;
-        //box.xmax = priors[startIdx + 2] ;
-        //box.ymax = priors[startIdx + 3] ;
-        //box.size = getBoxSize(box) ;
-        //priorBoxes->push_back(box) ;
-    //}
-
-    //for (int p = 0; p < numPriors; ++p) {
-        //int startIdx = (numPriors + p) * 4;
-        //std::vector<float> var;
-        //for (int j = 0; j < 4; ++j) {
-            //var.push_back(priors[startIdx + j]);
-        //}
-        //priorVars->push_back(var);
-    //}
-//}
-
-//void decodeBox(const NormalizedBox& priorBox, 
-               //const std::vector<float>& priorVar,
-               //const NormalizedBox& box,
-               //NormalizedBox* decodedBox) 
-//{
-    //float priorWidth = priorBox.xmax - priorBox.xmin ;
-    //float priorHeight = priorBox.ymax - priorBox.ymin ;
-    //float priorCenterX = (priorBox.xmin + priorBox.xmax) / 2. ;
-    //float priorCenterY = (priorBox.ymin + priorBox.ymax) / 2.;
-    //assert(priorWidth > 0) ;
-    //assert(priorHeight > 0) ;
-
-    //float decodedCenterX, decodedCenterY, decodedWidth, decodedHeight ;
-    //decodedCenterX = priorVar[0] * box.xmin * priorWidth + priorCenterX ;
-    //decodedCenterY = priorVar[1] * box.ymin * priorHeight + priorCenterY ;
-    //decodedWidth = exp(priorVar[2] * box.xmax) * priorWidth ;
-    //decodedHeight = exp(priorVar[3] * box.ymax) * priorHeight ;
-
-    //decodedBox->xmin = (decodedCenterX - decodedWidth / 2.) ;
-    //decodedBox->ymin = (decodedCenterY - decodedHeight / 2.) ;
-    //decodedBox->xmax = (decodedCenterX + decodedWidth / 2.) ;
-    //decodedBox->ymax = (decodedCenterY + decodedHeight / 2.) ;
-    //decodedBox->size = getBoxSize(*decodedBox) ;
-//}
-
-//void decodeBoxes(const BoxVector &priorBoxes,
-                 //const std::vector<std::vector<float>>& priorVars,
-                 //const BoxVector& boxes,
-                 //BoxVector* decodedBoxes) 
-//{
-    //assert(priorBoxes.size() == priorVars.size()) ;
-    //assert(priorBoxes.size() == boxes.size()) ;
-    //int numBoxes = priorBoxes.size();
-    //if (numBoxes >= 1) {
-        //assert(priorVars[0].size() == 4) ;
-    //}
-    //decodedBoxes->clear();
-     //for (int i = 0; i < numBoxes; ++i) {
-        //NormalizedBox decodedBox;
-        //decodeBox(priorBoxes[i], priorVars[i], boxes[i], &decodedBox);
-        //decodedBoxes->push_back(decodedBox);
-     //}
-//}
-
-//void decodeBoxesBatch(const std::vector<Label2BoxesMap>& locPredsBatch,
-                 //const BoxVector &priorBoxes,
-                 //const std::vector<std::vector<float> >& priorVars,
-                 //const int batchSize, 
-                 //std::vector<Label2BoxesMap> *decodedBoxesBatch) 
-//{
-    //assert(locPredsBatch.size() == batchSize) ;
-    //decodedBoxesBatch->clear() ;
-    //decodedBoxesBatch->resize(batchSize) ;
-    //for (int i = 0 ; i < batchSize ; ++i) {
-        //// Decode predictions into bboxes.
-        //Label2BoxesMap& decodedBoxes = (*decodedBoxesBatch)[i] ;
-        //int label = -1 ;
-        //if (locPredsBatch[i].find(label) == locPredsBatch[i].end()) {
-            //printf("Unable to find location preds for label %d", label) ;
-        //}
-        //const BoxVector &labelLocPreds = locPredsBatch[i].find(label)->second ;
-        //decodeBoxes(priorBoxes, priorVars, labelLocPreds, &(decodedBoxes[label])) ;
-    //}
-    ////printf("decoded box for label %d xmin: %f\n", (*decodedBoxesBatch)[0][-1][0].xmin) ;
-    ////printf("decoded box for label %d ymin: %f\n", (*decodedBoxesBatch)[0][-1][0].ymin) ;
-    ////printf("decoded box for label %d xmax: %f\n", (*decodedBoxesBatch)[0][-1][0].xmax) ;
-    ////printf("decoded box for label %d ymax: %f\n", (*decodedBoxesBatch)[0][-1][0].ymax) ;
-//}
 
 namespace vl { namespace impl {
 
@@ -322,59 +34,49 @@ namespace vl { namespace impl {
 
     static vl::ErrorCode
     forward(Context& context,
-            T* output,
+            std::vector<int> &output,
             T const* boxes,
             float overlap, 
-            int num_boxes)
+            size_t num_boxes,
+            int &num_kept)
     {
-      printf("cpu version running\n") ;
-      printf("vl_bboxnms: overlap: %d\n", overlap) ;
-      printf("vl_bboxnms: num_boxes: %d\n", num_boxes) ;
-      //printf("vl_bboxnms: keepTopK: %d\n", keepTopK) ;
-      //printf("vl_bboxnms: numClasses: %d\n", numClasses) ;
-      //printf("vl_bboxnms: nmsThresh: %f\n", nmsThresh) ;
-      //printf("vl_bboxnms: confThresh: %f\n", confThresh) ;
-      //printf("vl_bboxnms: backgroundLabel: %d\n", backgroundLabel) ;
-      //printf("vl_bboxnms: outHeight: %d\n", outHeight) ;
-      //printf("vl_bboxnms: outWidth: %d\n", outWidth) ;
-      //printf("vl_bboxnms: batchSize: %d\n", batchSize) ;
-      //printf("vl_bboxnms: num priors: %d\n", numPriors) ;
+      std::multimap<T, int> scores ;
+      std::vector<double> boxAreas(num_boxes) ;
 
-      //for (int i = 0 ; i < batchSize ; ++i) {
-          //int count = 0 ; // fixed size outputs
-          //const Label2ScoreMap &confScores = confScoresBatch[i] ;
-          //const Label2BoxesMap &decodedBoxes = decodedBoxesBatch[i] ;
+      for (int ii = 0 ; ii < num_boxes ; ++ii) {
+          boxAreas[ii] = double(boxes[ii*5 + 2] - boxes[ii*5] + 1 ) * 
+                 (boxes[ii*5 + 3] - boxes[ii*5 + 1] + 1 ) ;
+          scores.insert(std::pair<T,int>(boxes[ii*5 + 4], ii)) ;
+          if (boxAreas[ii] < 0) 
+              vlmxError(VLMXE_IllegalArgument, "All box areas should be > 0") ;
+      }
 
-          //for (indexIter it = batchIndices[i].begin() ; 
-                                 //it != batchIndices[i].end(); ++it) {
-              //int label = it->first ;
-              //if (confScores.find(label) == confScores.end()) {
-                  //printf("Could not find conf preds for %d", label) ;
-                  //continue;
-              //}
-              //const std::vector<float> &scores = confScores.find(label)->second ;
-              //int locLabel = -1 ;
-              //if (decodedBoxes.find(locLabel) == decodedBoxes.end()) {
-                  //printf("Could not find loc preds for %d", locLabel) ;
-                  //continue;
-              //}
-              //const BoxVector &boxes = decodedBoxes.find(locLabel)->second ;
-              //std::vector<int> &indices = it->second ;
+      while (scores.size() > 0) {
+          int last = scores.rbegin()->second ;
+          output[num_kept] = last ;
+          num_kept += 1 ;
+          T last_xmin = boxes[last*5] ;
+          T last_ymin = boxes[last*5 + 1] ;
+          T last_xmax = boxes[last*5 + 2] ;
+          T last_ymax = boxes[last*5 + 3] ;
 
-              //int numIndices = indices.size() ;
-              //for (int j = 0 ; j < numIndices ; ++j) {
-                  //int idx = indices[j] ;
-                  //const NormalizedBox& box = boxes[idx] ;
-                  //output[outHeight * i * 6 + count ] = label + 1 ; // MATLAB +1
-                  //output[outHeight * i * 6 + outHeight + 1 * count] = scores[idx] ;
-                  //output[outHeight * i * 6 + outHeight * 2 + count] = box.xmin ;
-                  //output[outHeight * i * 6 + outHeight * 3 + count] = box.ymin ;
-                  //output[outHeight * i * 6 + outHeight * 4 + count] = box.xmax ;
-                  //output[outHeight * i * 6 + outHeight * 5 + count] = box.ymax ;
-                //++count;
-              //}
-          //}
-      //}
+          for (typename std::multimap<T,int>::iterator it = scores.begin() ; 
+                                                       it != scores.end() ;) {
+              int idx = it->second ;
+              T x1 = std::max(last_xmin, boxes[idx*5]) ;
+              T y1 = std::max(last_ymin, boxes[idx*5 + 1]) ;
+              T x2 = std::min(last_xmax, boxes[idx*5 + 2]) ;
+              T y2 = std::min(last_ymax, boxes[idx*5 + 3]) ;
+              double w = std::max(T(0), x2-x1+1) ; 
+              double h = std::max(T(0), y2-y1+1) ;
+              double ov = w*h / (boxAreas[last] + boxAreas[idx] - w*h) ;
+              if (ov > overlap) {
+                  it = scores.erase(it) ;
+              } else {
+                  it++ ;
+              }
+          }
+      }
       return VLE_Success ;
    }
  } ;

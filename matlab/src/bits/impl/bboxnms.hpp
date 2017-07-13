@@ -13,8 +13,9 @@ the terms of the BSD license (see the COPYING file).
 #ifndef VL_BBOXNMS_H
 #define VL_BBOXNMS_H
 
-#include <bits/data.hpp>
+#include "../data.hpp"
 #include <cstddef>
+#include <vector>
 
 // defines the dispatcher for CUDA kernels:
 namespace vl { namespace impl {
@@ -24,12 +25,15 @@ namespace vl { namespace impl {
 
     static vl::ErrorCode
     forward(Context& context,
-            T* output,
+            std::vector<int> &output,
             T const* boxes,
-            int overlap,
-            size_t num_boxes) ;
-  } ;
+            float overlap,
+            size_t num_boxes, 
+            int &num_kept) ;
 
-} }
+  } ;
+} 
+
+}
 
 #endif /* defined(VL_BBOXNMS_H) */

@@ -12,16 +12,18 @@ the terms of the BSD license (see the COPYING file).
 #ifndef __vl__nnbboxnms__
 #define __vl__nnbboxnms__
 
-#include <bits/data.hpp>
+#include "data.hpp"
+#include <vector>
 #include <stdio.h>
 
 namespace vl {
 
   vl::ErrorCode
   nnbboxnms_forward(vl::Context& context,
-                    vl::Tensor output,
+                    std::vector<int> &output,
                     vl::Tensor boxes,
-                    float overlap) ;
+                    float overlap,
+                    int &num_kept) ;
 }
 
 #endif /* defined(__vl__nnbboxnms__) */

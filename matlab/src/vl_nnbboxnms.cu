@@ -11,9 +11,11 @@ the terms of the BSD license (see the COPYING file).
 */
 
 
-#include <bits/mexutils.h>
+#include "bits/mexutils.h"
+#include "matrix.h"
 #include <bits/datamex.hpp>
-#include "bits/nnbboxnms.hpp"
+#include <bits/nnbboxnms.hpp>
+#include <vector>
 
 #if ENABLE_GPU
 #include <bits/datacu.hpp>
@@ -90,30 +92,22 @@ void mexFunction(int nout, mxArray *out[],
   }
 
   vl::MexTensor boxes(context) ;
-
   boxes.init(in[IN_BOXES]) ;
   boxes.reshape(2) ;
-
+  int box_dims = boxes.getHeight() ;
   float overlap = (float)mxGetScalar(in[IN_OVERLAP]) ;
 
-  /* check for appropriate input box shape */
-  int box_dims = boxes.getWidth() ;
   if (box_dims != 5) {
-    vlmxError(VLMXE_IllegalArgument, "BOXES should have shape N x 5.") ;
+    vlmxError(VLMXE_IllegalArgument, "BOXES should have shape 5 x N.") ;
   }
 
-  /* Create output buffers */
-  vl::MexTensor output(context) ;
-  vl::DataType dataType = boxes.getDataType() ;
-  vl::TensorShape outputShape = vl::TensorShape(boxes.getHeight(), 1, 1, 1) ;
-  output.initWithZeros(vl::VLDT_CPU, dataType, outputShape) ;
+  std::vector<int> output = std::vector<int>(boxes.getWidth()) ; // store nms picks
+  int num_kept = 0 ; // track the number kept by nms
 
   if (verbosity > 0) {
     mexPrintf("vl_nnbboxnms: mode %s; %s\n",  
             (boxes.getDeviceType()==vl::VLDT_GPU)?"gpu":"cpu", "forward") ;
         vl::print("vl_nnbboxnms: boxes: ", boxes) ;
-       // mexPrintf("vl_nnbboxnms: overlap: %d\n", overlap) ;
-        vl::print("vl_nnbboxnms: output: ", output) ;
       }
       /* -------------------------------------------------------------- */
       /*                                                    Do the work */
@@ -123,7 +117,8 @@ void mexFunction(int nout, mxArray *out[],
       error = vl::nnbboxnms_forward(context, 
                                     output, 
                                     boxes, 
-                                    overlap) ;
+                                    overlap,
+                                    num_kept) ;
 
   /* -------------------------------------------------------------- */
   /*                                                         Finish */
@@ -132,5 +127,8 @@ void mexFunction(int nout, mxArray *out[],
   if (error != vl::VLE_Success) {
     mexErrMsgTxt(context.getLastErrorMessage().c_str()) ;
   }
-  out[OUT_RESULT] = output.relinquish() ;
+  out[OUT_RESULT] = mxCreateNumericMatrix(num_kept, 1, mxDOUBLE_CLASS, mxREAL) ;
+  double *ptr = mxGetPr(out[OUT_RESULT]) ;
+  for (int ii = 0 ; ii < num_kept ; ++ii) 
+      ptr[ii] = output[ii] + 1 ;
 }
