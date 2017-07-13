@@ -106,7 +106,9 @@ for t = 1:numel(testIdx)
     numKeep = min(size(cls_dets,1),opts.modelOpts.maxPredsPerImage) ;
     cls_dets = cls_dets(1:numKeep,:) ;
 
-    keep = bbox_nms(cls_dets, opts.modelOpts.nmsThresh) ;
+    keyboard
+    keep = vl_nnbboxnms(cls_dets', opts.modelOpts.nmsThresh) ;
+    %keep = bbox_nms(cls_dets, opts.modelOpts.nmsThresh) ;
     cls_dets = cls_dets(keep, :) ;
 
     if numel(keep)

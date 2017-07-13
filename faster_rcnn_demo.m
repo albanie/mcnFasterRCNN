@@ -3,6 +3,7 @@ function faster_rcnn_demo(varargin)
 % using the dagnn wrapper
 
 opts.modelPath = '' ;
+opts.raw = 1 ;
 opts.nmsThresh = 0.3 ;
 opts.confThresh = 0.8 ;
 opts.maxScale = 1000 ;
@@ -51,27 +52,18 @@ else
 end
 
 % Load the network and put it in test mode.
-net = load(opts.modelPath) ;
-if isfield('forward') % autonn
-  model = 'autonn' ;
-  net = Net(net) ;
-else
-  model = 'dag' ;
-  net = dagnn.DagNN.loadobj(net);
-  net.mode = 'test' ;
-end
+net = load(opts.modelPath) ; net = dagnn.DagNN.loadobj(net);
+net.mode = 'test' ;
 
 % Load test image
 imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/000456.jpg') ;
 im = single(imread(imPath)) ;
 
 % choose variables to track
-if strcmp(model, 'dag')
-  clsIdx = net.getVarIndex('cls_prob') ;
-  bboxIdx = net.getVarIndex('bbox_pred') ;
-  roisIdx = net.getVarIndex('rois') ;
-  [net.vars([clsIdx bboxIdx roisIdx]).precious] = deal(true) ;
-end
+clsIdx = net.getVarIndex('cls_prob') ;
+bboxIdx = net.getVarIndex('bbox_pred') ;
+roisIdx = net.getVarIndex('rois') ;
+[net.vars([clsIdx bboxIdx roisIdx]).precious] = deal(true) ;
 
 % resize to meet the standard faster r-cnn size criteria
 imsz = [size(im,1) size(im,2)] ; maxSc = opts.maxScale ; 
@@ -80,18 +72,11 @@ if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
 newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
 data = imresize(im, factor, 'bilinear') ; 
 
-if strcmp(mode, 'autonn')
-  in = {'data', data, 'im_info', imInfo} ; net.eval(in, 'forward') ;
-  probs = squeeze(net.getValue('cls_prob')) ;
-  deltas = squeeze(net.getValue('bbox_pred')) ;
-  props = net.getValue('proposal') ; boxes = props(2:end,:)' / imInfo(3) ;
-else
-  % run network and retrieve results
-  net.eval({'data', data, 'im_info', imInfo}) ;
-  probs = squeeze(net.vars(clsIdx).value) ;
-  deltas = squeeze(net.vars(bboxIdx).value) ;
-  boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
-end
+% run network and retrieve results
+net.eval({'data', data, 'im_info', imInfo}) ;
+probs = squeeze(net.vars(clsIdx).value) ;
+deltas = squeeze(net.vars(bboxIdx).value) ;
+boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
 
 % Visualize results for one class at a time
 for i = 2:numel(opts.classes)
@@ -99,8 +84,12 @@ for i = 2:numel(opts.classes)
   cprobs = probs(c,:) ;
   cdeltas = deltas(4*(c-1)+(1:4),:)' ;
 
-  cboxes = bbox_transform_inv(boxes, cdeltas);
-  cls_dets = [cboxes cprobs'] ;
+  if opts.raw
+    cls_dets = [boxes cprobs'] ;
+  else
+    cboxes = bbox_transform_inv(boxes, cdeltas);
+    cls_dets = [cboxes cprobs'] ;
+  end
 
   keep = bbox_nms(cls_dets, opts.nmsThresh) ;
   cls_dets = cls_dets(keep, :) ;

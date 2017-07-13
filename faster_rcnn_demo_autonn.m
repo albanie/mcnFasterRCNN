@@ -2,7 +2,7 @@ function faster_rcnn_demo_autonn(varargin)
 %FASTER_RCNN_DEMO Minimalistic demonstration of the faster-rcnn detector
 % using the dagnn wrapper
 
-opts.modelPath = 'data/pascal/vgg16/deployed/frcnn-13.mat' ;
+opts.modelPath = 'data/pascal/vgg16/deployed/local-faster_rcnn-pascal-14.mat' ;
 opts.nmsThresh = 0.3 ;
 opts.confThresh = 0.8 ;
 opts.maxScale = 1000 ;
@@ -33,23 +33,6 @@ opts.classes = {'none_of_the_above', ...
     'tvmonitor'} ;
 opts = vl_argparse(opts, varargin) ;
 
-% Load or download an example faster-rcnn model:
-modelName = 'faster-rcnn-vggvd-pascal.mat' ;
-paths = {opts.modelPath, ...
-         modelName, ...
-         fullfile(vl_rootnn, 'data', 'models-import', modelName)} ;
-ok = find(cellfun(@(x) exist(x, 'file'), paths), 1) ;
-
-if isempty(ok)
-  fprintf('Downloading the Faster R-CNN model ... this may take a while\n') ;
-  opts.modelPath = fullfile(vl_rootnn, 'data/models-import', modelName) ;
-  mkdir(fileparts(opts.modelPath)) ; base = 'http://www.robots.ox.ac.uk' ;
-  url = sprintf('%s/~albanie/models/faster/%s', base, modelName) ;
-  urlwrite(url, opts.modelPath) ;
-else
-  opts.modelPath = paths{ok} ;
-end
-
 % Load the network and put it in test mode.
 out = load(opts.modelPath) ; net = Net(out) ;
 
@@ -67,16 +50,17 @@ data = imresize(im, factor, 'bilinear') ;
 in = {'data', data, 'im_info', imInfo} ; net.eval(in, 'forward') ;
 probs = squeeze(net.getValue('cls_prob')) ;
 deltas = squeeze(net.getValue('bbox_pred')) ;
-props = net.getValue('proposal') ; boxes = props(2:end,:)' / imInfo(3) ;
+props = net.getValue('proposal') ; 
+boxes = props(2:end,:)' / imInfo(3) ;
 
 % Visualize results for one class at a time
 for ii = 2:numel(opts.classes)
   cprobs = probs(ii,:) ;
   cdeltas = deltas(4*(ii-1)+(1:4),:)' ;
 
-  cboxes = bbox_transform_inv(boxes, cdeltas);
-  if numel(cboxes), keyboard ; end
+  cboxes = bbox_transform_inv(boxes, cdeltas) ;
   cls_dets = [cboxes cprobs'] ;
+  cls_dets = [boxes cprobs'] ;
 
   keep = bbox_nms(cls_dets, opts.nmsThresh) ;
   cls_dets = cls_dets(keep, :) ;

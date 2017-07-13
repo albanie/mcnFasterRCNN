@@ -191,6 +191,9 @@ end
 
 net = Net(rpn_multitask_loss, multitask_loss) ;
 
+% set meta information to match original training code
+net.meta.normalization.averageImage = [122.771, 115.9465, 102.9801] ; 
+
 % ---------------------------------------------------------------------
 function net = add_block(net, name, opts, sz, nonLinearity, varargin)
 % ---------------------------------------------------------------------

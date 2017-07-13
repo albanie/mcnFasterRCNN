@@ -3,7 +3,7 @@ function faster_rcnn_pascal_train(varargin)
 opts.gpus = 3 ;
 opts.debug = 0 ; 
 opts.continue = 1 ;
-opts.confirmConfig = false ;
+opts.confirmConfig = 1 ;
 opts.architecture = 'vgg16' ;
 opts.pruneCheckpoints = true ;
 opts.flipAugmentation = true ;
@@ -38,6 +38,7 @@ dataOpts.dataRoot = fullfile(vl_rootnn, 'data', 'datasets') ;
 
 % configure model options
 modelOpts.type = 'faster_rcnn' ;
+modelOpts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
 modelOpts.locWeight = 1 ;
 modelOpts.numClasses = 21 ;
 modelOpts.featStride = 16 ;
@@ -54,7 +55,7 @@ modelOpts.batchRenormalization = false ;
 modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
 
 % Set learning rates
-steadyLR = 0.00001 ;
+steadyLR = 0.001 ;
 gentleLR = 0.0001 ;
 vGentleLR = 0.00001 ;
 
@@ -115,7 +116,8 @@ batchOpts.use_vl_imreadjpeg = opts.use_vl_imreadjpeg ;
 batchOpts.resizers = {'bilinear', 'box', 'nearest', 'bicubic', 'lanczos2'} ;
 
 % configure paths
-expDir = fullfile(vl_rootnn, 'data', dataOpts.name, opts.architecture) ;
+expName = getExpName(modelOpts, dataOpts) 
+expDir = fullfile(vl_rootnn, 'data', dataOpts.name, expName) ;
 imdbTail = fullfile(dataOpts.name, '/standard_imdb/imdb.mat') ;
 dataOpts.imdbPath = fullfile(vl_rootnn, 'data', imdbTail);
 modelName = sprintf('local-%s-%s-%d-%%d.mat', modelOpts.type, dataOpts.name) ;

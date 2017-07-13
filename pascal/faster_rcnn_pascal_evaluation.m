@@ -14,10 +14,16 @@ opts.refreshCache = true ;
 opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
 opts = vl_argparse(opts, varargin) ;
 
-% load network and convert to autonn
-if isempty(opts.net), opts.net = faster_rcnn_zoo(opts.modelName) ; end
-layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
-opts.net = Net(layers{:}) ;
+% if needed, load network and convert to autonn
+if isempty(opts.net), 
+  opts.net = faster_rcnn_zoo(opts.modelName) ; 
+  layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
+  opts.net = Net(layers{:}) ;
+end
+
+% temp fix
+imMean = [122.771, 115.9465, 102.9801] ;
+opts.net.meta.normalization.averageImage = permute(imMean, [3 1 2]) ; 
 
 % evaluation options
 opts.testset = 'test' ; 
@@ -38,7 +44,7 @@ cacheOpts.refreshCache = opts.refreshCache ;
 modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
 modelOpts.maxPredsPerImage = 100 ; 
 modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
-modelOpts.numClasses = numel(opts.net.meta.classes.name) ;
+modelOpts.numClasses = 21 ; % includes background for pascal
 modelOpts.nmsThresh = 0.3 ;
 modelOpts.confThresh = 0.05 ;
 

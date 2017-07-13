@@ -1,6 +1,6 @@
-function net = faster_rcnn_deploy(srcPath, destPath, numClasses)
+function net = faster_rcnn_deploy(srcPath, destPath)
 % FASTER_RCNN_DEPLOY deploys a FASTER_RCNN model for evaluation
-%   NET = FASTER_RCNN_DEPLOY(SRCPATH, DESTPATH, NUMCLASSES) configures
+%   NET = FASTER_RCNN_DEPLOY(SRCPATH, DESTPATH) configures
 %   a Faster-RCNN model to perform evaluation.  THis process involves
 %   removing the loss layers used during training and adding 
 %   a combination of a transpose softmax with a detection
@@ -13,12 +13,7 @@ function net = faster_rcnn_deploy(srcPath, destPath, numClasses)
 % the terms of the BSD license (see the COPYING file).
 
 tmp = load(srcPath) ; 
-out = Layer.fromCompiledNet(tmp.net) ; rpn = out{1} ; frcnn = out{2} ;
-
-% modify network to use RPN for predictions at test time
-frcnn.find('proposals', 1).inputs{7} = 300 ; % num proposals
-frcnn.find('proposals', 1).inputs{9} = 6000 ; % pre-NMS top N
-frcnn.find('roi_pool5',1).inputs{2} = frcnn.find('proposals',1) ;
+out = Layer.fromCompiledNet(tmp.net) ; frcnn = out{2} ;
 
 % fix names from old config
 map = {{'proposals', 'proposal'}, {'imInfo', 'im_info'}} ;
@@ -26,6 +21,11 @@ for ii = 1:numel(map)
   pair = map{ii} ; old = pair{1} ; new = pair{2} ;
   if ~isempty(frcnn.find(old)), frcnn.find(old, 1).name = new ; end
 end
+
+% modify network to use RPN for predictions at test time
+frcnn.find('proposal', 1).inputs{7} = 300 ; % num proposals
+frcnn.find('proposal', 1).inputs{9} = 6000 ; % pre-NMS top N
+frcnn.find('roi_pool5',1).inputs{2} = frcnn.find('proposal',1) ;
 
 % set outputs
 bbox_pred = frcnn.find('bbox_pred', 1) ;
