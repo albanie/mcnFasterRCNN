@@ -31,7 +31,8 @@ error = vl::impl::bboxnms<deviceType,T>::forward (context, \
 output, \
 (T const*) boxes.getMemory(), \
 (float) overlap, \
-(size_t) boxes.getWidth()) ;
+(size_t) boxes.getWidth(),\
+num_kept) ;
 
 #define DISPATCH2(deviceType) \
 switch (dataType) { \
@@ -47,7 +48,8 @@ vl::ErrorCode
 vl::nnbboxnms_forward(vl::Context& context,
                       std::vector<int> &output,
                       vl::Tensor boxes,
-                      float overlap)
+                      float overlap,
+                      int &num_kept)
 {
   vl::ErrorCode error = VLE_Success ;
   vl::DataType dataType = boxes.getDataType() ;

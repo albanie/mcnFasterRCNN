@@ -22,7 +22,8 @@ namespace vl {
   nnbboxnms_forward(vl::Context& context,
                     std::vector<int> &output,
                     vl::Tensor boxes,
-                    float overlap) ;
+                    float overlap,
+                    int &num_kept) ;
 }
 
 #endif /* defined(__vl__nnbboxnms__) */

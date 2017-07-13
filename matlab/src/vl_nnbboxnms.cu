@@ -79,7 +79,6 @@ void mexFunction(int nout, mxArray *out[],
 
   // backwards mode is not yet supported for nms
   next = 2 ;
-  mexPrintf("entering\n") ;
 
   while ((opt = vlmxNextOption (in, nin, options, &next, &optarg)) >= 0) {
     switch (opt) {
@@ -102,13 +101,8 @@ void mexFunction(int nout, mxArray *out[],
     vlmxError(VLMXE_IllegalArgument, "BOXES should have shape 5 x N.") ;
   }
 
-  /* Create output vector */
-  std::vector<int> output = std::vector<int>(boxes.getWidth()) ;
-
-  /*vl::MexTensor output(context) ;*/
-  /*vl::DataType dataType = boxes.getDataType() ;*/
-  /*vl::TensorShape outputShape = vl::TensorShape(boxes.getHeight(), 1, 1, 1) ;*/
-  /*output.initWithZeros(vl::VLDT_CPU, dataType, outputShape) ;*/
+  std::vector<int> output = std::vector<int>(boxes.getWidth()) ; // store nms picks
+  int num_kept = 0 ; // track the number kept by nms
 
   if (verbosity > 0) {
     mexPrintf("vl_nnbboxnms: mode %s; %s\n",  
@@ -123,7 +117,8 @@ void mexFunction(int nout, mxArray *out[],
       error = vl::nnbboxnms_forward(context, 
                                     output, 
                                     boxes, 
-                                    overlap) ;
+                                    overlap,
+                                    num_kept) ;
 
   /* -------------------------------------------------------------- */
   /*                                                         Finish */
@@ -132,10 +127,8 @@ void mexFunction(int nout, mxArray *out[],
   if (error != vl::VLE_Success) {
     mexErrMsgTxt(context.getLastErrorMessage().c_str()) ;
   }
-  int num_kept = output.size() ;
   out[OUT_RESULT] = mxCreateNumericMatrix(num_kept, 1, mxDOUBLE_CLASS, mxREAL) ;
   double *ptr = mxGetPr(out[OUT_RESULT]) ;
   for (int ii = 0 ; ii < num_kept ; ++ii) 
       ptr[ii] = output[ii] + 1 ;
-  //out[OUT_RESULT] = *ptr ;
 }

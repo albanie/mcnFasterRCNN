@@ -28,7 +28,8 @@ namespace vl { namespace impl {
             std::vector<int> &output,
             T const* boxes,
             float overlap,
-            size_t num_boxes) ;
+            size_t num_boxes, 
+            int &num_kept) ;
 
   } ;
 } 
