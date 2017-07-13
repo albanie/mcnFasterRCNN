@@ -21,7 +21,6 @@ the terms of the BSD license (see the COPYING file).
 #include <algorithm>
 #include <math.h>
 #include <string.h>
-// #include <bits/mexutils.h>
 
 #include <map>
 #include <vector>
@@ -36,7 +35,6 @@ the terms of the BSD license (see the COPYING file).
 enum {
   XMIN = 0, YMIN, XMAX, YMAX,
 } ;
-
 
 // set number of threads per block (should be at least 64)
 int const BLOCKSIZE = (sizeof(unsigned long long) * 8) ;
@@ -111,9 +109,6 @@ __global__ void nmsKernel(const int numBoxes,
         {
             if (jaccard(currBox, blockBoxes + ii*5) > overlapThresh)
             {
-                printf("overlap: %g for box %d vs offset %d\n", 
-                        jaccard(currBox, blockBoxes + ii*5), boxIdx, ii)  ;
-                printf("using threshold %g\n", overlapThresh) ;
                 tt |= 1ULL << ii ;
             }
         }

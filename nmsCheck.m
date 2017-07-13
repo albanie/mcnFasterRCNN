@@ -2,17 +2,13 @@ rng(2) ;
 sc = 100 ;
 opts.disp = 0 ;
 opts.useGpu = 1 ;
-numBoxes = 150 ;
-boxes = rand(numBoxes, 5) ;
+numBoxes = 50000 ;
+boxes = rand(numBoxes, 4) ;
 boxes(:,3:4) = bsxfun(@minus, 1, boxes(:,1:2)) .* boxes(:,3:4) + boxes(:,1:2) ;
 overlap = single(0.3) ; 
-boxes = single(round(boxes * sc));
+boxes = [single(round(boxes * sc)) rand(numBoxes, 1) ] ;
 
-% fix boxes to sensible values
-%boxes = [ 11 11 31 31 20 ; 
-          %15 15 32 32 30 ;
-          %32 35 42 42 40] ;
-          %0.13 0.33 0.23 0.43 0.5] ;
+% NOTE: tied scores may not be broken the same way
 
 if opts.useGpu
   boxes = gpuArray(boxes) ;
@@ -40,16 +36,16 @@ fprintf('num pick2 %d \n', numel(pick2)) ;
 
 % 
 b = gather(boxes(:,1:4)) ;
-bWH = bboxCoder(b, 'MinMax', 'MinWH') ;
+bWH = bboxCoder(b(pick1,:), 'MinMax', 'MinWH') ;
 
 if opts.disp
-  figure ; 
+  clf ; figure ;
   for ii = 1:size(bWH,1) 
-    rectangle('Position', bWH(ii,:)) ;
+    rectangle('Position', bWH(ii,:), 'EdgeColor', 'Red') ;
     hold on ;
   end
   xlim([0 100]) ; ylim([0 100]) ;
   zs_dispFig ;
   ov = bbox_overlap(b,b) ;
-  pp = triu(ov,1) ; disp(pp(pp>overlap)) ;
+  %pp = triu(ov,1) ; disp(pp(pp<overlap)') ;
 end

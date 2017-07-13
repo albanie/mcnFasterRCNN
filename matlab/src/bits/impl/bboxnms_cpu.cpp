@@ -51,7 +51,6 @@ namespace vl { namespace impl {
               vlmxError(VLMXE_IllegalArgument, "All box areas should be > 0") ;
       }
 
-      //printf("num boxes %d: %f \n", num_boxes) ;
       while (scores.size() > 0) {
           int last = scores.rbegin()->second ;
           output[num_kept] = last ;

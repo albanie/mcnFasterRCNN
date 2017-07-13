@@ -4,4 +4,5 @@
 %   covered by previous selections. 
 %
 %  To keep things fast, the input shape is 5xn rather than the nx5 commonly
-%  used
+%  used.  Moreover, it is assumed that the boxes are sorted in order of 
+%  descending scores (where scores are stored in the fifth row).
