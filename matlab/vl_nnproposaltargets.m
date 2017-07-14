@@ -40,6 +40,7 @@ overlaps = bbox_overlap(gather(allRois(:,2:end)), gtBoxes) ; % run on CPU
 labels = reshape(gtLabels(gtI), 1, []) ; % ensure 1xn shape for single labels
 
 fgInds = find(maxOverlaps >= opts.fgThresh) ;
+
 % prevent issue caused by fgRoisPerImage < numel(fgInds)
 numFgRois = min(fgRoisPerImage, numel(fgInds)) ;
 
@@ -101,3 +102,4 @@ function [targets,iw] = getBboxRegressionLabels(targetData, opts)
     targets(:,:,head+1:tail, ind) = targetData(ind, 2:end) ;
     iw(:,:,head+1:tail, ind) = opts.insideWeight ;
   end
+  keyboard

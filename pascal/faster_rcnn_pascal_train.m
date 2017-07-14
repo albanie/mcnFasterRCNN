@@ -3,7 +3,7 @@ function faster_rcnn_pascal_train(varargin)
 opts.gpus = 3 ;
 opts.debug = 0 ; 
 opts.continue = 1 ;
-opts.confirmConfig = 1 ;
+opts.confirmConfig = 0 ;
 opts.architecture = 'vgg16' ;
 opts.pruneCheckpoints = true ;
 opts.flipAugmentation = true ;
@@ -14,11 +14,11 @@ opts.use_vl_imreadjpeg = true ;
 opts = vl_argparse(opts, varargin) ;
 
 % configure training options
-train.batchSize = 1 ;
+train.batchSize = 2 ;
+train.numSubBatches = 2 ; %ceil(4 / max(numel(train.gpus), 1)) ;
 train.gpus = opts.gpus ;
 train.continue = opts.continue ;
 train.parameterServer.method = 'mmap' ;
-train.numSubBatches = 1 ; %ceil(4 / max(numel(train.gpus), 1)) ;
 train.derOutputs = 1 ; % give each loss the same weight
 train.stats = {'rpn_loss_cls', 'rpn_loss_bbox', 'rpn_multitask_loss', ...
               'loss_cls', 'loss_bbox', 'multitask_loss'} ; % train end to end

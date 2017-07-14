@@ -15,7 +15,7 @@ function y = vl_nnsmoothL1loss(x, t, varargin)
 %   f(x) = {
 %          { |x| - 0.5 / sigma^2,    otherwise.
 %
-%   DZDX = VL_NNHUBERLOSS(X, T, DZDY) computes the derivatives with 
+%   DZDX = VL_NNSMOOTHL1LOSS(X, T, DZDY) computes the derivatives with 
 %   respect to inputs X. DZDX and DZDY have the same dimensions
 %   as X and Y respectively.  The derivative of the Huber Loss is 
 %   computed using
@@ -24,7 +24,7 @@ function y = vl_nnsmoothL1loss(x, t, varargin)
 %  f'(x) = {
 %          { sign(x),          otherwise.
 %
-%   VL_NNHUBERLOSS(..., 'option', value, ...) takes the following option:
+%   VL_NNSMOOTHL1LOSS(..., 'option', value, ...) takes the following option:
 %
 %   `insideWweights`:: []
 %    If given, weights the distance between x and t *before* computing the 
@@ -62,5 +62,6 @@ else
     delta(linearRegion) = sign(delta(linearRegion));
     delta(~linearRegion) = sigma2 * delta(~linearRegion) ;
     if ~isempty(opts.outsideWeights), delta = delta .* opts.outsideWeights ; end
+    if ~isempty(opts.insideWeights), delta = delta .* opts.insideWeights ; end
     y = delta .* dzdy{1} ;
 end

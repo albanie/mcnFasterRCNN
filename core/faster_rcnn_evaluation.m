@@ -106,7 +106,6 @@ for t = 1:numel(testIdx)
     numKeep = min(size(cls_dets,1),opts.modelOpts.maxPredsPerImage) ;
     cls_dets = cls_dets(1:numKeep,:) ;
 
-    keyboard
     keep = vl_nnbboxnms(cls_dets', opts.modelOpts.nmsThresh) ;
     %keep = bbox_nms(cls_dets, opts.modelOpts.nmsThresh) ;
     cls_dets = cls_dets(keep, :) ;
@@ -245,14 +244,14 @@ for t = 1:opts.batchOpts.batchSize:numel(testIdx)
   batch = testIdx(batchStart : numlabs : batchEnd) ;
   num = num + numel(batch) ;
   if numel(batch) == 0, continue ; end
-  if ~isempty(sc), args = {batch, opts, sc} ; else args = {batch, opts} ; end
+  if ~isempty(sc), args = {batch, opts, sc} ; else, args = {batch, opts} ; end
   inputs = opts.modelOpts.get_eval_batch(imdb, args{:}) ;
 
   if opts.prefetch
     batchStart_ = t + (labindex - 1) + opts.batchOpts.batchSize ;
     batchEnd_ = min(t + 2*opts.batchOpts.batchSize - 1, numel(testIdx)) ;
     next = testIdx(batchStart_: numlabs : batchEnd_) ;
-    if ~isempty(sc), args = {next, opts, sc} ; else args = {next, opts} ; end
+    if ~isempty(sc), args = {next, opts, sc} ; else, args = {next, opts} ; end
     opts.modelOpts.get_eval_batch(imdb, args{:}, 'prefetch', true) ;
   end
 

@@ -3,7 +3,7 @@ function faster_rcnn_demo(varargin)
 % using the dagnn wrapper
 
 opts.modelPath = '' ;
-opts.raw = 1 ;
+opts.raw = 0 ;
 opts.nmsThresh = 0.3 ;
 opts.confThresh = 0.8 ;
 opts.maxScale = 1000 ;

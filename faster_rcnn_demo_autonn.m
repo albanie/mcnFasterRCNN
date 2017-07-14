@@ -2,7 +2,7 @@ function faster_rcnn_demo_autonn(varargin)
 %FASTER_RCNN_DEMO Minimalistic demonstration of the faster-rcnn detector
 % using the dagnn wrapper
 
-opts.modelPath = 'data/pascal/vgg16/deployed/local-faster_rcnn-pascal-14.mat' ;
+opts.modelPath = 'data/pascal/faster_rcnn-pascal-vt-1-vgg16-flip/deployed/local-faster_rcnn-pascal-.mat' ;
 opts.nmsThresh = 0.3 ;
 opts.confThresh = 0.8 ;
 opts.maxScale = 1000 ;
@@ -58,9 +58,10 @@ for ii = 2:numel(opts.classes)
   cprobs = probs(ii,:) ;
   cdeltas = deltas(4*(ii-1)+(1:4),:)' ;
 
-  cboxes = bbox_transform_inv(boxes, cdeltas) ;
-  cls_dets = [cboxes cprobs'] ;
+  %cboxes = bbox_transform_inv(boxes, cdeltas) ;
+  %cls_dets = [cboxes cprobs'] ;
   cls_dets = [boxes cprobs'] ;
+  %keyboard
 
   keep = bbox_nms(cls_dets, opts.nmsThresh) ;
   cls_dets = cls_dets(keep, :) ;
