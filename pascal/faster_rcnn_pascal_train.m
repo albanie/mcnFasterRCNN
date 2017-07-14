@@ -116,7 +116,7 @@ batchOpts.use_vl_imreadjpeg = opts.use_vl_imreadjpeg ;
 batchOpts.resizers = {'bilinear', 'box', 'nearest', 'bicubic', 'lanczos2'} ;
 
 % configure paths
-expName = getExpName(modelOpts, dataOpts) 
+expName = getExpName(modelOpts, dataOpts) ;
 expDir = fullfile(vl_rootnn, 'data', dataOpts.name, expName) ;
 imdbTail = fullfile(dataOpts.name, '/standard_imdb/imdb.mat') ;
 dataOpts.imdbPath = fullfile(vl_rootnn, 'data', imdbTail);

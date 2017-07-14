@@ -102,4 +102,3 @@ function [targets,iw] = getBboxRegressionLabels(targetData, opts)
     targets(:,:,head+1:tail, ind) = targetData(ind, 2:end) ;
     iw(:,:,head+1:tail, ind) = opts.insideWeight ;
   end
-  keyboard

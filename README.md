@@ -29,3 +29,13 @@ Running the `faster_rcnn_demo.m` script will download a model trained on pascal 
 ### Detector Evaluation
 
 There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models)). Training code will be added when the original experiments have been reproduced.
+
+
+### Performance
+
+The Faster R-CNN pipeline makes heavy use of non-maximum suppression during training and inference. As a result, the runtime of the detector is significantly affected by the efficiency of the NMS function.  A GPU version of non-maximum suppression can be found [here](https://github.com/albanie/mcnNMS), which can be compiled and added to your MATLAB path.  Approximate benchmarks of the code are given below on a Tesla M40 with a single item batch size:
+
+| mode      | NMS (CPU) | NMS (GPU) |
+|-----------|-----------|-----------|
+| training  | 1.1 Hz    | 2.7 Hz    |
+| inference | 6.5 Hz    | 7.5 Hz    |
