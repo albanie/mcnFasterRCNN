@@ -1,4 +1,12 @@
 function predBoxes = bboxTransformInv(boxes, deltas)
+%BBOXTRANSFORMINV invert bbox target encoding
+%  BBOXTRANSFORMINV(BOXES, DELTAS) computes the boxes predicted by 
+%  applying DELTAS to the given set of BOXES under the inverse bbox
+%  parameterisation introduced in the paper:
+%
+%    Girshick, Ross, et al. "Rich feature hierarchies for accurate object 
+%    detection and semantic segmentation." Proceedings of the IEEE 
+%    conference on computer vision and pattern recognition. 2014.
 
   W = boxes(:,3) - boxes(:,1) + 1 ;
   H = boxes(:,4) - boxes(:,2) + 1 ;

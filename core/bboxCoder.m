@@ -13,43 +13,39 @@ function newBoxes = bboxCoder(boxes, from, to)
 %
 % Example:
 %    newBoxes = bboxCoder(bboxes, 'MinMax', 'CenWH') 
+%
+% Copyright (C) 2017 Samuel Albanie 
+% All rights reserved.
 
-assert(~strcmp(from,to), '`from` and `to` should be different encodings') ;
+  assert(~strcmp(from,to), '`from` and `to` should be different encodings') ;
 
-switch from
+  switch from
     case 'MinMax'
-        WH = boxes(:,3:4,:,:) - boxes(:,1:2,:,:) ;
-        if strcmp(to, 'CenWH')
-            CenXY = boxes(:,1:2,:,:) + WH / 2 ;
-        else
-            MinXY = boxes(:,1:2,:,:) ;
-        end
+      WH = boxes(:,3:4,:,:) - boxes(:,1:2,:,:) ;
+      if strcmp(to, 'CenWH')
+        CenXY = boxes(:,1:2,:,:) + WH / 2 ;
+      else
+        MinXY = boxes(:,1:2,:,:) ;
+      end
     case 'MinWH'
-        WH = boxes(:,3:4,:,:) ;
-        if strcmp(to, 'CenWH')
-            CenXY = boxes(:,1:2,:,:) + WH / 2 ;
-        else
-            MinXY = boxes(:,1:2,:,:) ;
-            MaxXY = MinXY + WH ;
-        end
+      WH = boxes(:,3:4,:,:) ;
+      if strcmp(to, 'CenWH')
+        CenXY = boxes(:,1:2,:,:) + WH / 2 ;
+      else
+        MinXY = boxes(:,1:2,:,:) ;
+        MaxXY = MinXY + WH ;
+      end
 
     case 'CenWH'
-        WH = boxes(:,3:4,:,:) ;
-        MinXY = boxes(:,1:2,:,:) - WH / 2;
-        if strcmp(to, 'MinMax')
-            MaxXY = MinXY + WH;
-        end
-    otherwise
-        fprintf('%s is not a supported encoding', from) ;
-end
+      WH = boxes(:,3:4,:,:) ;
+      MinXY = boxes(:,1:2,:,:) - WH / 2;
+      if strcmp(to, 'MinMax'), MaxXY = MinXY + WH; end
+    otherwise, fprintf('%s is not a supported encoding', from) ;
+  end
 
-switch to
-    case 'MinMax'
-        newBoxes = [ MinXY MaxXY] ;
-    case 'MinWH'
-        newBoxes = [ MinXY WH] ;
-    case 'CenWH'
-        newBoxes = [ CenXY WH] ;
-    otherwise
-        fprintf('%s is not a supported encoding', to) ;
-end
+  switch to
+    case 'MinWH', newBoxes = [ MinXY WH] ;
+    case 'CenWH', newBoxes = [ CenXY WH] ;
+    case 'MinMax', newBoxes = [ MinXY MaxXY] ;
+    otherwise, fprintf('%s is not a supported encoding', to) ;
+  end
