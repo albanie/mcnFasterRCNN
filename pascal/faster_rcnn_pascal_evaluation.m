@@ -1,104 +1,135 @@
 function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
-%FASTER_RCNN_EVALUATE  Evaluate a trained Faster-RCNN model on 
-% PASCAL VOC 2007
+%FASTER_RCNN_PASCAL_EVALUATION Evaluate a Faster-RCNN model on VOC 2007
+%   FASTER_RCNN_PASCAL_EVALUATION computes and evaluates a set of detections
+%   for a given Faster-RCNN detector on the Pascal VOC 2007 test set.
+%
+%   FASTER_RCNN_PASCAL_EVALUATION(..'name', value) accepts the following 
+%   options:
+%
+%   `net` :: []
+%    The `autonn` network object to be evaluated.  If not supplied, a network
+%    will be loaded instead by name from the detector zoo.
+%
+%   `gpus` :: []
+%    If provided, the gpu ids to be used for processing.
+%
+%   `evalVersion` :: 'fast'
+%    The type of VOC evaluation code to be run.  The options are 'official', 
+%    which runs the original (slow) pascal evaluation code, or 'fast', which
+%    runs an optimised version which is useful during development.
+%
+%   `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
+%    The path to the directory containing the pascal data
+%
+%   `nms` :: 'cpu'
+%    NMS can be run on either the gpu if the dependency has been installed
+%    (see README.md for details), or on the cpu (slower).
+%
+%   `relu` :: 'MATLAB'
+%    By default, the standard matconvnet `vl_nnrelu` is used.  However, 
+%    if compiled, the slightly faster `vl_nnquickrelu` is also available
+%    by supplying the 'CUDA' option.
+%
+%   `modelName` :: 'faster-rcnn-vggvd-pascal'
+%    The name of the detector to be evaluated (used to generate output
+%    file names, caches etc.)
+%
+%   `refreshCache` :: false
+%    If true, overwrite previous predictions by any detector sharing the 
+%    same model name, otherwise, load results directly from cache.
 
 % Copyright (C) 2017 Samuel Albanie 
 % All rights reserved.
-opts.net = [] ;
-opts.modelName = 'faster-rcnn-vggvd-pascal' ;
-opts.evalVersion = 'fast' ;
-opts.expDir = '' ; % preserve interface
-opts.optsStruct = struct() ; 
-opts.gpus = [2 3] ;
-opts.refreshCache = true ;
-opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
-opts = vl_argparse(opts, varargin) ;
 
-% if needed, load network and convert to autonn
-if isempty(opts.net), 
-  opts.net = faster_rcnn_zoo(opts.modelName) ; 
-  layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
-  opts.net = Net(layers{:}) ;
-end
+  opts.net = [] ;
+  opts.gpus = 2 ;
+  opts.refreshCache = true ;
+  opts.evalVersion = 'fast' ;
+  %opts.optsStruct = struct() ; 
+  opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
+  opts.modelName = 'faster-rcnn-vggvd-pascal' ;
+  opts.nms = 'cpu' ;  
+  opts.relu = 'MATLAB' ;
+  opts = vl_argparse(opts, varargin) ;
 
-% temp fix
-imMean = [122.771, 115.9465, 102.9801] ;
-opts.net.meta.normalization.averageImage = permute(imMean, [3 1 2]) ; 
+  % if needed, load network and convert to autonn
+  if isempty(opts.net)
+    opts.net = faster_rcnn_zoo(opts.modelName) ; 
+    layers = Layer.fromDagNN(opts.net, @faster_rcnn_autonn_custom_fn) ;
+    net = Net(layers{:}) ;
+  else
+    net = opts.net ;
+  end
 
-% evaluation options
-opts.testset = 'test' ; 
-opts.prefetch = false ;
+  net = configureNet(net, opts) ; % configure optimisations if required
 
-% configure batch opts
-batchOpts.batchSize = numel(opts.gpus) * 1 ;
-batchOpts.numThreads = numel(opts.gpus) * 4 ;
-batchOpts.use_vl_imreadjpeg = 0 ; 
-batchOpts.maxScale = 1000 ;
-batchOpts.scale = 600 ;
-batchOpts.averageImage = opts.net.meta.normalization.averageImage ;
+  % evaluation options
+  opts.testset = 'test' ; 
+  opts.prefetch = false ;
 
-% cache configuration 
-cacheOpts.refreshCache = opts.refreshCache ;
+  % configure batch opts
+  batchOpts.scale = 600 ;
+  batchOpts.maxScale = 1000 ;
+  batchOpts.use_vl_imreadjpeg = 0 ; 
+  batchOpts.batchSize = numel(opts.gpus) * 1 ;
+  batchOpts.numThreads = numel(opts.gpus) * 4 ;
+  batchOpts.averageImage = opts.net.meta.normalization.averageImage ;
 
-% configure model options
-modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
-modelOpts.maxPredsPerImage = 100 ; 
-modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
-modelOpts.numClasses = 21 ; % includes background for pascal
-modelOpts.nmsThresh = 0.3 ;
-modelOpts.confThresh = 0.05 ;
+  % configure model options
+  modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
+  modelOpts.nmsThresh = 0.3 ;
+  modelOpts.numClasses = 21 ; % includes background for pascal
+  modelOpts.confThresh = 0.05 ;
+  modelOpts.maxPredsPerImage = 100 ; 
+  modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
 
-% configure dataset options
-dataOpts.name = 'pascal' ;
-dataOpts.resultsFormat = 'minMax' ; 
-dataOpts.getImdb = @getPascalImdb ;
-dataOpts.dataRoot = opts.dataRoot ;
-dataOpts.eval_func = @pascal_eval_func ;
-dataOpts.evalVersion = opts.evalVersion ;
-dataOpts.displayResults = @displayPascalResults ;
-dataOpts.configureImdbOpts = @configureImdbOpts ;
-dataOpts.imdbPath = fullfile(vl_rootnn, 'data/pascal/standard_imdb/imdb.mat') ;
+  % configure dataset options
+  dataOpts.name = 'pascal' ;
+  dataOpts.resultsFormat = 'minMax' ; 
+  dataOpts.getImdb = @getPascalImdb ;
+  dataOpts.dataRoot = opts.dataRoot ;
+  dataOpts.eval_func = @pascal_eval_func ;
+  dataOpts.evalVersion = opts.evalVersion ;
+  dataOpts.displayResults = @displayPascalResults ;
+  dataOpts.configureImdbOpts = @configureImdbOpts ;
+  dataOpts.imdbPath = fullfile(vl_rootnn, 'data/pascal/standard_imdb/imdb.mat') ;
 
-% configure paths
-expDir = fullfile(vl_rootnn, 'data/evaluations', dataOpts.name, opts.modelName) ;
-resultsFile = sprintf('%s-%s-results.mat', opts.modelName, opts.testset) ;
-evalCacheDir = fullfile(expDir, 'eval_cache') ;
-cacheOpts.resultsCache = fullfile(evalCacheDir, resultsFile) ;
-cacheOpts.evalCacheDir = evalCacheDir ;
+  % configure paths and cache 
+  expDir = fullfile(vl_rootnn, 'data/evaluations', dataOpts.name, opts.modelName) ;
+  resultsFile = sprintf('%s-%s-results.mat', opts.modelName, opts.testset) ;
+  evalCacheDir = fullfile(expDir, 'eval_cache') ;
+  cacheOpts.resultsCache = fullfile(evalCacheDir, resultsFile) ;
+  cacheOpts.evalCacheDir = evalCacheDir ;
+  cacheOpts.refreshCache = opts.refreshCache ;
+  if ~exist(evalCacheDir, 'dir'), mkdir(evalCacheDir) ; end
 
-if ~exist(evalCacheDir, 'dir'), 
-    mkdir(evalCacheDir) ;
-    mkdir(fullfile(evalCacheDir, 'cache')) ;
-end
+  % configure meta options
+  opts.dataOpts = dataOpts ;
+  opts.modelOpts = modelOpts ;
+  opts.batchOpts = batchOpts ;
+  opts.cacheOpts = cacheOpts ;
 
-% configure meta options
-opts.dataOpts = dataOpts ;
-opts.modelOpts = modelOpts ;
-opts.batchOpts = batchOpts ;
-opts.cacheOpts = cacheOpts ;
-
-results = faster_rcnn_evaluation(expDir, opts.net, opts) ;
+  faster_rcnn_evaluation(expDir, net, opts) ;
 
 % ------------------------------------------------------------------
 function aps = pascal_eval_func(modelName, decodedPreds, imdb, opts)
 % ------------------------------------------------------------------
+  fprintf('evaluating %s \n', modelName) ;
+  numClasses = numel(imdb.meta.classes) - 1 ;  % exclude background
+  aps = zeros(numClasses, 1) ;
 
-fprintf('evaluating %s \n', modelName) ;
-numClasses = numel(imdb.meta.classes) - 1 ;  % exclude background
-aps = zeros(numClasses, 1) ;
-
-for c = 1:numClasses
-    className = imdb.meta.classes{c + 1} ; % offset for background
-    results = eval_voc(className, ...
-                       decodedPreds.imageIds{c}, ...
-                       decodedPreds.bboxes{c}, ...
-                       decodedPreds.scores{c}, ...
-                       opts.dataOpts.VOCopts, ...
-                       'evalVersion', opts.dataOpts.evalVersion) ;
-    fprintf('%s %.1\n', className, 100 * results.ap_auc) ;
-    aps(c) = results.ap_auc ; 
-end
-save(opts.cacheOpts.resultsCache, 'aps') ;
+  for c = 1:numClasses
+      className = imdb.meta.classes{c + 1} ; % offset for background
+      results = eval_voc(className, ...
+                         decodedPreds.imageIds{c}, ...
+                         decodedPreds.bboxes{c}, ...
+                         decodedPreds.scores{c}, ...
+                         opts.dataOpts.VOCopts, ...
+                         'evalVersion', opts.dataOpts.evalVersion) ;
+      fprintf('%s %.1\n', className, 100 * results.ap_auc) ;
+      aps(c) = results.ap_auc ; 
+  end
+  save(opts.cacheOpts.resultsCache, 'aps') ;
 
 % -----------------------------------------------------------
 function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
@@ -107,11 +138,12 @@ function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
 % (must be done after the imdb is in place since evaluation
 % paths are set relative to data locations)
 
-if 0  % benchmark
-  keep = 100 ; testIdx = find(imdb.images.set == 3) ;
-  imdb.images.set(testIdx(keep+1:end)) = 4 ;
-end
-opts.dataOpts = configureVOC(expDir, opts.dataOpts, 'test') ;
+  BENCHMARK = 0 ;
+  if BENCHMARK  % benchmark
+    keep = 100 ; testIdx = find(imdb.images.set == 3) ;
+    imdb.images.set(testIdx(keep+1:end)) = 4 ;
+  end
+  opts.dataOpts = configureVOC(expDir, opts.dataOpts, 'test') ;
 
 %-----------------------------------------------------------
 function dataOpts = configureVOC(expDir, dataOpts, testset) 
@@ -126,50 +158,80 @@ function dataOpts = configureVOC(expDir, dataOpts, testset)
 % devkit root, initialize the pascal options and then change
 % back into our original directory 
 
-VOCRoot = fullfile(dataOpts.dataRoot, 'VOCdevkit2007') ;
-VOCopts.devkitCode = fullfile(VOCRoot, 'VOCcode') ;
+  VOCRoot = fullfile(dataOpts.dataRoot, 'VOCdevkit2007') ;
+  VOCopts.devkitCode = fullfile(VOCRoot, 'VOCcode') ;
 
-% check the existence of the required folders
-assert(logical(exist(VOCRoot, 'dir')), 'VOC root directory not found') ;
-assert(logical(exist(VOCopts.devkitCode, 'dir')), 'devkit code not found') ;
+  % check the existence of the required folders
+  assert(logical(exist(VOCRoot, 'dir')), 'VOC root directory not found') ;
+  assert(logical(exist(VOCopts.devkitCode, 'dir')), 'devkit code not found') ;
 
-currentDir = pwd ;
-cd(VOCRoot) ;
-addpath(VOCopts.devkitCode) ;
+  currentDir = pwd ;
+  cd(VOCRoot) ;
+  addpath(VOCopts.devkitCode) ;
 
-% VOCinit loads database options into a variable called VOCopts
-VOCinit ; 
+  % VOCinit loads database options into a variable called VOCopts
+  VOCinit ; 
 
-dataDir = fullfile(VOCRoot, '2007') ;
-VOCopts.localdir = fullfile(dataDir, 'local') ;
-VOCopts.imgsetpath = fullfile(dataDir, 'ImageSets/Main/%s.txt') ;
-VOCopts.imgpath = fullfile(dataDir, 'ImageSets/Main/%s.txt') ;
-VOCopts.annopath = fullfile(dataDir, 'Annotations/%s.xml') ;
-VOCopts.cacheDir = fullfile(expDir, '2007/Results/Cache') ;
-VOCopts.drawAPCurve = false ;
-VOCopts.testset = testset ;
-detDir = fullfile(expDir, 'VOCdetections') ;
+  dataDir = fullfile(VOCRoot, '2007') ;
+  VOCopts.localdir = fullfile(dataDir, 'local') ;
+  VOCopts.imgsetpath = fullfile(dataDir, 'ImageSets/Main/%s.txt') ;
+  VOCopts.imgpath = fullfile(dataDir, 'ImageSets/Main/%s.txt') ;
+  VOCopts.annopath = fullfile(dataDir, 'Annotations/%s.xml') ;
+  VOCopts.cacheDir = fullfile(expDir, '2007/Results/Cache') ;
+  VOCopts.drawAPCurve = false ;
+  VOCopts.testset = testset ;
+  detDir = fullfile(expDir, 'VOCdetections') ;
 
-% create detection and cache directories if required
-requiredDirs = {VOCopts.localdir, VOCopts.cacheDir, detDir} ;
-for i = 1:numel(requiredDirs)
-    reqDir = requiredDirs{i} ;
-    if ~exist(reqDir, 'dir') 
-        mkdir(reqDir) ;
-    end
-end
+  % create detection and cache directories if required
+  requiredDirs = {VOCopts.localdir, VOCopts.cacheDir, detDir} ;
+  for i = 1:numel(requiredDirs)
+      reqDir = requiredDirs{i} ;
+      if ~exist(reqDir, 'dir') 
+          mkdir(reqDir) ;
+      end
+  end
 
-VOCopts.detrespath = fullfile(detDir, sprintf('%%s_det_%s_%%s.txt', 'test')) ;
-dataOpts.VOCopts = VOCopts ;
+  VOCopts.detrespath = fullfile(detDir, sprintf('%%s_det_%s_%%s.txt', 'test')) ;
+  dataOpts.VOCopts = VOCopts ;
 
-% return to original directory
-cd(currentDir) ;
+  % return to original directory
+  cd(currentDir) ;
 
 % ---------------------------------------------------------------------------
 function displayPascalResults(modelName, aps, opts)
 % ---------------------------------------------------------------------------
 
-fprintf('============\n') ;
-fprintf(sprintf('%s set performance of %s:', opts.testset, modelName)) ;
-fprintf('%.1f (mean ap) \n', 100 * mean(aps)) ;
-fprintf('============\n') ;
+  fprintf('============\n') ;
+  fprintf(sprintf('%s set performance of %s:', opts.testset, modelName)) ;
+  fprintf('%.1f (mean ap) \n', 100 * mean(aps)) ;
+  fprintf('============\n') ;
+
+% ------------------------------------
+function net = configureNet(net, opts)
+% ------------------------------------
+%CONFIGURENET - update layers to optimise performance
+%  CONFIGURENET(NET, OPTS) updates relu layers to use CUDA implementation
+%  (if specified), and updates NMS to run on GPU (if specified)
+
+  dnet = Layer.fromCompiledNet(net) ; % decompile
+  cls_head = dnet{1} ; bbox_head = dnet{2} ;
+
+  if strcmp(opts.relu, 'CUDA') % descend, update and prune
+    head = cls_head ;
+    while any(cellfun(@(x) isa(x, 'Layer'), head.inputs))
+      head = head.inputs{1} ; % follow first input convention
+      if isequal(head.func, @vl_nnrelu)
+        head.func = @vl_nnquickrelu ; % update relus
+      end
+    end
+  end
+
+  % update NMS
+  prev = cls_head.find(@vl_nnproposalrpn, 1) ;
+  %in = prev.inputs(1:3) ; prev.inputs(1:3) = [] ; % pop previous input layers
+  in = [ prev.inputs {'nms', opts.nms}] ; % update nms option
+  proposals = Layer.create(@vl_nnproposalrpn, in) ;
+  proposals.name = prev.name ;
+  cls_head.find(@vl_nnroipool, 1).inputs{2} = proposals ; % reattach
+
+  net = Net(cls_head, bbox_head) ; % recompile
