@@ -25,11 +25,6 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 %    NMS can be run on either the gpu if the dependency has been installed
 %    (see README.md for details), or on the cpu (slower).
 %
-%   `relu` :: 'MATLAB'
-%    By default, the standard matconvnet `vl_nnrelu` is used.  However, 
-%    if compiled, the slightly faster `vl_nnquickrelu` is also available
-%    by supplying the 'CUDA' option.
-%
 %   `modelName` :: 'faster-rcnn-vggvd-pascal'
 %    The name of the detector to be evaluated (used to generate output
 %    file names, caches etc.)
@@ -43,13 +38,11 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 
   opts.net = [] ;
   opts.gpus = 2 ;
+  opts.nms = 'cpu' ;  
   opts.refreshCache = true ;
   opts.evalVersion = 'fast' ;
-  %opts.optsStruct = struct() ; 
-  opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts.modelName = 'faster-rcnn-vggvd-pascal' ;
-  opts.nms = 'cpu' ;  
-  opts.relu = 'MATLAB' ;
+  opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts = vl_argparse(opts, varargin) ;
 
   % if needed, load network and convert to autonn
@@ -61,7 +54,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
     net = opts.net ;
   end
 
-  net = configureNet(net, opts) ; % configure optimisations if required
+  net = configureNMS(net, opts) ; % configure NMS optimisations if required
 
   % evaluation options
   opts.testset = 'test' ; 
@@ -200,35 +193,22 @@ function dataOpts = configureVOC(expDir, dataOpts, testset)
 % ---------------------------------------------------------------------------
 function displayPascalResults(modelName, aps, opts)
 % ---------------------------------------------------------------------------
-
   fprintf('============\n') ;
   fprintf(sprintf('%s set performance of %s:', opts.testset, modelName)) ;
   fprintf('%.1f (mean ap) \n', 100 * mean(aps)) ;
   fprintf('============\n') ;
 
 % ------------------------------------
-function net = configureNet(net, opts)
+function net = configureNMS(net, opts)
 % ------------------------------------
-%CONFIGURENET - update layers to optimise performance
-%  CONFIGURENET(NET, OPTS) updates relu layers to use CUDA implementation
-%  (if specified), and updates NMS to run on GPU (if specified)
+%CONFIGURENMS - update porposal rpn to optimise performance
+%  CONFIGURENMS(NET, OPTS) updates NMS to run on GPU (if specified)
 
   dnet = Layer.fromCompiledNet(net) ; % decompile
   cls_head = dnet{1} ; bbox_head = dnet{2} ;
 
-  if strcmp(opts.relu, 'CUDA') % descend, update and prune
-    head = cls_head ;
-    while any(cellfun(@(x) isa(x, 'Layer'), head.inputs))
-      head = head.inputs{1} ; % follow first input convention
-      if isequal(head.func, @vl_nnrelu)
-        head.func = @vl_nnquickrelu ; % update relus
-      end
-    end
-  end
-
   % update NMS
   prev = cls_head.find(@vl_nnproposalrpn, 1) ;
-  %in = prev.inputs(1:3) ; prev.inputs(1:3) = [] ; % pop previous input layers
   in = [ prev.inputs {'nms', opts.nms}] ; % update nms option
   proposals = Layer.create(@vl_nnproposalrpn, in) ;
   proposals.name = prev.name ;
