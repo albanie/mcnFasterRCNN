@@ -15,11 +15,11 @@ opts = vl_argparse(opts, varargin) ;
 
 % configure training options
 train.batchSize = 2 ;
+train.derOutputs = 1 ; % give each loss the same weight
 train.numSubBatches = 2 ; %ceil(4 / max(numel(train.gpus), 1)) ;
 train.gpus = opts.gpus ;
 train.continue = opts.continue ;
 train.parameterServer.method = 'mmap' ;
-train.derOutputs = 1 ; % give each loss the same weight
 train.stats = {'rpn_loss_cls', 'rpn_loss_bbox', 'rpn_multitask_loss', ...
               'loss_cls', 'loss_bbox', 'multitask_loss'} ; % train end to end
 
@@ -56,7 +56,7 @@ modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
 
 % Set learning rates
 steadyLR = 0.001 ;
-gentleLR = 0.0001 ;
+gentleLR = 0.0001 ; % fix weighting
 vGentleLR = 0.00001 ;
 
 % this should correspond (approximately) to the 70,000 iterations 
@@ -116,7 +116,7 @@ batchOpts.use_vl_imreadjpeg = opts.use_vl_imreadjpeg ;
 batchOpts.resizers = {'bilinear', 'box', 'nearest', 'bicubic', 'lanczos2'} ;
 
 % configure paths
-expName = getExpName(modelOpts, dataOpts) ;
+expName = getExpNameFRCNN(modelOpts, dataOpts) ;
 expDir = fullfile(vl_rootnn, 'data', dataOpts.name, expName) ;
 imdbTail = fullfile(dataOpts.name, '/standard_imdb/imdb.mat') ;
 dataOpts.imdbPath = fullfile(vl_rootnn, 'data', imdbTail);

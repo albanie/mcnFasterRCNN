@@ -5,8 +5,8 @@ DEBUG = 0 ; % force flip
 imNames = imdb.images.name(batch) ; imPathTemplates = imdb.images.paths(batch) ;
 imPaths = cellfun(@(x,y) sprintf(x, y), imPathTemplates, imNames, 'Uni', 0) ;
 annotations = imdb.annotations(batch) ;
-targets = cellfun(@(x) x.boxes, annotations, 'UniformOutput', false) ;
-labels = cellfun(@(x) single(x.classes), annotations, 'UniformOutput', false) ;
+targets = cellfun(@(x) {x.boxes}, annotations) ;
+labels = cellfun(@(x) {single(x.classes)}, annotations) ;
 
 imsz = double(imdb.images.imageSizes{batch}) ;
 maxSc = bopts.maxScale ; factor = max(bopts.scale ./ imsz) ; 
@@ -102,7 +102,7 @@ for i = 1:numel(batch)
     im = imresize(im, imInfo(1:2), 'method', resizers{i}) ;  % num check
   end
 
-  if DEBUG || bopts.flipOpts.use && rand < bopts.flipOpts.prob % flipping
+  if bopts.flipOpts.use && rand < bopts.flipOpts.prob % flipping
     im = fliplr(im) ;
     targets_ = [1 - targets_(:,3) targets_(:,2) 1 - targets_(:,1) targets_(:,4)] ;
   end

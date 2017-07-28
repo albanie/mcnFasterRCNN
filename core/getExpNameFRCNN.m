@@ -1,5 +1,5 @@
-function expName = getExpName(mopts, dopts) 
-%GETEXPNAME defines a naming strategy for each experiment, 
+function expName = getExpNameFRCNN(mopts, dopts) 
+%GETEXPNAMEFRCNN defines a naming strategy for each experiment, 
 % depending on the options used during training
 
 if dopts.useValForTraining, subset = 'vt' ; else, subset = 't' ; end
@@ -13,4 +13,3 @@ if dopts.distortAugmentation, expName = [ expName '-distort' ] ; end
 if dopts.zoomAugmentation
     expName = [ expName sprintf('-zoom-%d', dopts.zoomScale) ] ;
 end
-

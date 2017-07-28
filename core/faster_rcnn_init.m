@@ -134,7 +134,7 @@ drop6 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop6' ;
 tail = net.find('fc7',1) ; tail.inputs{1} = drop6 ;
 
 relu7 = net.find('relu7', 1) ;
-drop7 = vl_nndropout(relu7, 'rate', 0.5) ; drop6.name = 'drop7' ;
+drop7 = vl_nndropout(relu7, 'rate', 0.5) ; drop7.name = 'drop7' ;
 
 % final predictions
 largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;
