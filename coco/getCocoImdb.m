@@ -1,5 +1,10 @@
 function imdb = getCocoImdb(opts)
-% coco imdb construction 
+%GETCOCOIMDB coco imdb construction 
+%  GETCOCOIMDB(OPTS) builds an image database for training and 
+%  testing on the coco dataset
+%
+% Copyright (C) 2017 Samuel Albanie 
+% All rights reserved.
 
   imdb = cocoSetup(opts) ;
   classIds = 1:numel(imdb.meta.classes) ;  
@@ -14,7 +19,6 @@ function imdb = getCocoImdb(opts)
 % ------------------------------
 function imdb = cocoSetup(opts)
 % ------------------------------
-
   opts.dataDir = fullfile(opts.dataOpts.dataRoot, 'mscoco') ;
   switch opts.dataOpts.year
     case 2014
@@ -119,4 +123,4 @@ function imdb = mergeImdbs(imdb1, imdb2)
 % -------------------------------------------------------------------------
 function str=esc(str)
 % -------------------------------------------------------------------------
-str = strrep(str, '\', '\\') ;
+  str = strrep(str, '\', '\\') ;
