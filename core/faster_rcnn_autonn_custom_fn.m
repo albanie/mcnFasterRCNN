@@ -1,5 +1,6 @@
 function obj = faster_rcnn_autonn_custom_fn(block, inputs, params)
-% converter to autonn
+%FASTER_RCNN_AUTONN_CUSTOM_FN helper for converting dagnn to autonn
+
   switch class(block)
     case 'dagnn.Reshape'
       obj = Layer.create(@vl_nnreshape, {inputs{1}, block.shape}) ;

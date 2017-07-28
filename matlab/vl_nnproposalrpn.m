@@ -30,7 +30,7 @@ function y = vl_nnproposalrpn(x, b, imInfo, varargin)
   bboxDeltas = reshape(permute(b, [3 2 1]), 4, [])' ;
   scores = reshape(permute(scores, [3 2 1]), [], 1) ;
   proposals = bboxTransformInv(anchors, bboxDeltas) ;
-  proposals = clipProposals(proposals, imInfo) ;
+  proposals = clipBoxes(proposals, imInfo) ;
 
   if opts.filterSmallProposals 
     % An observation was made in the following paper that this filtering
@@ -66,31 +66,31 @@ function keep = filterPropsoals(proposals, minSize)
   keep = find(W >= minSize & H >= minSize) ;
 
 % ---------------------------------------------------
-function proposals = clipProposals(proposals, imInfo)
-% ---------------------------------------------------
-  proposals(:, 1) =  max(min(proposals(:, 1), imInfo(2) -1), 0) ;
-  proposals(:, 2) =  max(min(proposals(:, 2), imInfo(1) -1), 0) ;
-  proposals(:, 3) =  max(min(proposals(:, 3), imInfo(2) -1), 0) ;
-  proposals(:, 4) =  max(min(proposals(:, 4), imInfo(1) -1), 0) ;
+%function proposals = clipProposals(proposals, imInfo)
+%% ---------------------------------------------------
+  %proposals(:, 1) =  max(min(proposals(:, 1), imInfo(2) -1), 0) ;
+  %proposals(:, 2) =  max(min(proposals(:, 2), imInfo(1) -1), 0) ;
+  %proposals(:, 3) =  max(min(proposals(:, 3), imInfo(2) -1), 0) ;
+  %proposals(:, 4) =  max(min(proposals(:, 4), imInfo(1) -1), 0) ;
 
 % --------------------------------------------------------
-function proposals = bboxTransformInv(anchors, bboxDeltas) 
-% --------------------------------------------------------
-  widths = anchors(:,3) - anchors(:,1) + 1 ;
-  heights = anchors(:,4) - anchors(:,2) + 1 ;
-  ctrX = anchors(:,1) + 0.5 .* widths ;
-  ctrY = anchors(:,2) + 0.5 .* heights ;
+%function proposals = bboxTransformInv(anchors, bboxDeltas) 
+%% --------------------------------------------------------
+  %widths = anchors(:,3) - anchors(:,1) + 1 ;
+  %heights = anchors(:,4) - anchors(:,2) + 1 ;
+  %ctrX = anchors(:,1) + 0.5 .* widths ;
+  %ctrY = anchors(:,2) + 0.5 .* heights ;
 
-  dx = bboxDeltas(:,1) ;
-  dy = bboxDeltas(:,2) ;
-  dw = bboxDeltas(:,3) ;
-  dh = bboxDeltas(:,4) ;
+  %dx = bboxDeltas(:,1) ;
+  %dy = bboxDeltas(:,2) ;
+  %dw = bboxDeltas(:,3) ;
+  %dh = bboxDeltas(:,4) ;
 
-  predCenX = dx .* widths + ctrX ;
-  predCenY = dy .* heights + ctrY ;
-  predW = exp(dw) .* widths ; 
-  predH = exp(dh) .* heights ;
-  proposals = [ predCenX - 0.5 * predW ...
-            predCenY - 0.5 * predH ...
-            predCenX + 0.5 * predW ...
-            predCenY + 0.5 * predH] ;
+  %predCenX = dx .* widths + ctrX ;
+  %predCenY = dy .* heights + ctrY ;
+  %predW = exp(dw) .* widths ; 
+  %predH = exp(dh) .* heights ;
+  %proposals = [ predCenX - 0.5 * predW ...
+            %predCenY - 0.5 * predH ...
+            %predCenX + 0.5 * predW ...
+            %predCenY + 0.5 * predH] ;

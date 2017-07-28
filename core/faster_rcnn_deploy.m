@@ -13,9 +13,9 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
 % the terms of the BSD license (see the COPYING file).
 
   opts.numClasses = 21 ;
-  opts.precomputedBboxNormalization = 1 ;
   opts.normalizeMeans = [0, 0, 0, 0] ;
   opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
+  opts.precomputedBboxNormalization = 1 ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
   tmp = load(srcPath) ; 
@@ -37,9 +37,8 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
   bbox_pred = frcnn.find('bbox_pred', 1) ;
   cls_score = frcnn.find('cls_score', 1) ;
 
-  if ~opts.precomputedBboxNormalization, error('unsupported') ; end
-
   % unnormalize bbox predictors
+  if ~opts.precomputedBboxNormalization, error('unsupported') ; end
   m = repmat(opts.normalizeMeans', opts.numClasses, 1) ;
   std = repmat(opts.normalizeStdDevs', opts.numClasses, 1) ;
   f = bbox_pred.inputs{2}.value ; b = bbox_pred.inputs{3}.value ;

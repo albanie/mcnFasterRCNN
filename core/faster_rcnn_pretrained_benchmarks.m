@@ -4,12 +4,12 @@
 evalVersion = 'fast' ; % switch to `official` for submissions
 
 models = {...
-    'faster-rcnn-pascal-vggvd', ...
-}
+  'faster-rcnn-pascal-vggvd', ...
+} ;
 
 for i = 1:numel(models)
-    model = models{i} ;
-    faster_rcnn_pascal_evaluation('modelName', model, ...
-                                  'evalVersion', evalVersion) ;
+  model = models{i} ;
+  faster_rcnn_pascal_evaluation('modelName', model, ...
+                                'evalVersion', evalVersion) ;
 end
 

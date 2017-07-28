@@ -32,7 +32,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 %   `refreshCache` :: false
 %    If true, overwrite previous predictions by any detector sharing the 
 %    same model name, otherwise, load results directly from cache.
-
+%
 % Copyright (C) 2017 Samuel Albanie 
 % All rights reserved.
 

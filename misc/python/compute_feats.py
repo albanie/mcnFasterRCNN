@@ -11,7 +11,8 @@
 Demo script showing detections in sample images.
 
 See README.md for installation instructions before running.
-""" # ----------------------------------
+""" 
+# ----------------------------------
 #                             bugfix
 # ----------------------------------
 
