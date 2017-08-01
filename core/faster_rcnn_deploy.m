@@ -59,5 +59,13 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
   if ~exist(outDir, 'dir'), mkdir(outDir) ; end
 
   net.meta.backgroundClass = 1 ; 
+
+  % add standard imagenet average if not present
+  if ~isfield(net.meta, 'normalization'), net.meta.normalization = struct() ; end
+  if ~isfield(net.meta.normalization, 'averageImage')
+    rgb = [122.771, 115.9465, 102.9801] ; 
+    net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
+  end
+
   net = net.saveobj() ; 
   save(destPath, '-struct', 'net') ;

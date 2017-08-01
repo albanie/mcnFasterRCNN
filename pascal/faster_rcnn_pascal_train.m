@@ -14,14 +14,29 @@ opts.use_vl_imreadjpeg = true ;
 opts = vl_argparse(opts, varargin) ;
 
 % configure training options
-train.batchSize = 2 ;
+train.batchSize = 1 ;
 train.derOutputs = 1 ; % give each loss the same weight
-train.numSubBatches = 2 ; %ceil(4 / max(numel(train.gpus), 1)) ;
+
+% ---------------
+% EXPERIMENT 1:
+% ---------------
+% numSubBatches = 1 ;
+% LR x2
+
+% ---------------
+% EXPERIMENT 2: (single GPU)
+% ---------------
+% numSubBatches = 1 ;
+% LR
+
+%EXP 3 -> change back bboxTransformInv
+
+%train.numSubBatches = 2 ; %ceil(4 / max(numel(train.gpus), 1)) ;
 train.gpus = opts.gpus ;
 train.continue = opts.continue ;
 train.parameterServer.method = 'mmap' ;
-train.stats = {'rpn_loss_cls', 'rpn_loss_bbox', 'rpn_multitask_loss', ...
-              'loss_cls', 'loss_bbox', 'multitask_loss'} ; % train end to end
+%train.stats = {'rpn_loss_cls', 'rpn_loss_bbox','loss_cls', 'loss_bbox', 'multitask_los'} ; % train end to end
+train.stats = {'rpn_loss_cls', 'rpn_loss_bbox','loss_cls', 'loss_bbox'} ; % train end to end
 
 % configure dataset options
 dataOpts.name = 'pascal' ;
@@ -37,7 +52,7 @@ dataOpts.prepareImdb = @prepareImdb ;
 dataOpts.dataRoot = fullfile(vl_rootnn, 'data', 'datasets') ;
 
 % configure model options
-modelOpts.type = 'faster_rcnn' ;
+modelOpts.type = 'faster-rcnn' ;
 modelOpts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
 modelOpts.locWeight = 1 ;
 modelOpts.numClasses = 21 ;
@@ -55,8 +70,8 @@ modelOpts.batchRenormalization = false ;
 modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
 
 % Set learning rates
-steadyLR = 0.001 ;
-gentleLR = 0.0001 ; % fix weighting
+steadyLR = 0.001 * 2 ;
+gentleLR = 0.0001 * 2 ; % fix weighting
 vGentleLR = 0.00001 ;
 
 % this should correspond (approximately) to the 70,000 iterations 
@@ -116,11 +131,11 @@ batchOpts.use_vl_imreadjpeg = opts.use_vl_imreadjpeg ;
 batchOpts.resizers = {'bilinear', 'box', 'nearest', 'bicubic', 'lanczos2'} ;
 
 % configure paths
-expName = getExpNameFRCNN(modelOpts, dataOpts) ;
+expName = getExpNameFRCNN(modelOpts, dataOpts, train) ;
 expDir = fullfile(vl_rootnn, 'data', dataOpts.name, expName) ;
 imdbTail = fullfile(dataOpts.name, '/standard_imdb/imdb.mat') ;
 dataOpts.imdbPath = fullfile(vl_rootnn, 'data', imdbTail);
-modelName = sprintf('local-%s-%s-%d-%%d.mat', modelOpts.type, dataOpts.name) ;
+modelName = sprintf('local-%s-%s-%%d.mat', modelOpts.type, dataOpts.name) ;
 modelOpts.deployPath = fullfile(expDir, 'deployed', modelName) ;
 
 % configure meta options

@@ -8,7 +8,7 @@ function predBoxes = bboxTransformInv(boxes, deltas)
 %    detection and semantic segmentation." Proceedings of the IEEE 
 %    conference on computer vision and pattern recognition. 2014.
 
-  W = boxes(:,3) - boxes(:,1) + 1 ;
+  W = boxes(:,3) - boxes(:,1) + 1 ;  
   H = boxes(:,4) - boxes(:,2) + 1 ;
   ctrX = boxes(:,1) + 0.5 * W ;
   ctrY = boxes(:,2) + 0.5 * H ;

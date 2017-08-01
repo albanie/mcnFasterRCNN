@@ -30,7 +30,8 @@ function faster_rcnn_train(expDir, opts, varargin)
 function [net, modelName] = deployModel(expDir, opts)
 % ---------------------------------------------------
   checkpointOpts = {'priorityMetric', 'multitask_loss', 'prune', false} ;
-  bestEpoch = findBestEpoch(expDir, checkpointOpts{:}) ;
+  bestEpoch = 14 ; % tmp fix
+  %bestEpoch = findBestEpoch(expDir, checkpointOpts{:}) ;
   bestNet = fullfile(expDir, sprintf('net-epoch-%d.mat', bestEpoch)) ;
   deployPath = sprintf(opts.modelOpts.deployPath, bestEpoch) ;
   opts.modelOpts.deploy_func(bestNet, deployPath) ;

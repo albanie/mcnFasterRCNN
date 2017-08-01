@@ -14,16 +14,20 @@ function batchData = faster_rcnn_eval_get_batch(imdb, batch, opts, varargin)
   maxSc = opts.batchOpts.maxScale ; 
   factor = max(opts.batchOpts.scale ./ imsz) ; 
   if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-  newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
+
+  % note: resizing by `factor` with bilinear resampling does not numerically
+  % produce the same result as resizing with non integer sizes.  To
+  % reproduce the caffe features, use `factor` scalar rather than `newSz`:
+  newSz = round(factor .* imsz) ; imInfo = [ newSz factor ] ;
 
   if opts.batchOpts.use_vl_imreadjpeg
     args = {imPaths, ...
       'Verbose', ...
       'NumThreads', opts.batchOpts.numThreads, ...
       'Interpolation', 'bilinear', ...
-      'SubtractAverage', squeeze(imMean), ...
+      'SubtractAverage', imMean, ...
       'CropAnisotropy', [1 1] ...
-      'Resize', factor} ;
+      'Resize', newSz} ;
 
     if useGpu > 0, args{end+1} = {'Gpu'} ; end
     args = horzcat(args(1), args{2:end}) ;
@@ -35,10 +39,12 @@ function batchData = faster_rcnn_eval_get_batch(imdb, batch, opts, varargin)
     end
   else
     im = single(imread(imPaths{1})) ; im = bsxfun(@minus, im, imMean) ;
-    % note: resizing by `factor` with bilinear resampling does not numerically
-    % produce the same result as resizing with non integer sizes.  To
-    % reproduce the caffe features, use `factor` scalar rather than `newSz`:
-    data = imresize(im, factor, 'bilinear') ; 
+    data = imresize(im, newSz, 'bilinear') ; 
     if useGpu, data = gpuArray(data) ; end
   end
+
+  % since images are not being packed in the same size, we must handle
+  % greyscale duplication separately
+  if size(data,3) == 1, data = repmat(data, [1 1 3]) ; end
+
   batchData = {'data', data, 'im_info', imInfo} ;

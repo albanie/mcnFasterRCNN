@@ -1,4 +1,9 @@
 function anchors = generateAnchors(opts)
+%GENERATEANCHORS - generate anchor windows for given options
+%  GENERATEANCHORS(OPTS) will generate a set of anchors by 
+%  applying each of the scales and aspect ratios defined in 
+%  OPTS.SCALES and OPTS.RATIOS to o "base anchor", which is 
+%  a square of witdh OPTS.BASESIZE. 
 
   baseAnchor = [1, 1, opts.baseSize, opts.baseSize] - 1;
   baseCenWH = anchorCoder(baseAnchor, 'CenWH') ;

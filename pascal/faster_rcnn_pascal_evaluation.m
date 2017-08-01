@@ -37,7 +37,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 % All rights reserved.
 
   opts.net = [] ;
-  opts.gpus = 2 ;
+  opts.gpus = [2 3 4] ;
   opts.nms = 'cpu' ;  
   opts.refreshCache = true ;
   opts.evalVersion = 'fast' ;
@@ -54,7 +54,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
     net = opts.net ;
   end
 
-  net = configureNMS(net, opts) ; % configure NMS optimisations if required
+  %net = configureNMS(net, opts) ; % configure NMS optimisations if required
 
   % evaluation options
   opts.testset = 'test' ; 
@@ -63,10 +63,10 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   % configure batch opts
   batchOpts.scale = 600 ;
   batchOpts.maxScale = 1000 ;
-  batchOpts.use_vl_imreadjpeg = 0 ; 
+  batchOpts.use_vl_imreadjpeg = 1 ; 
   batchOpts.batchSize = numel(opts.gpus) * 1 ;
   batchOpts.numThreads = numel(opts.gpus) * 4 ;
-  batchOpts.averageImage = opts.net.meta.normalization.averageImage ;
+  batchOpts.averageImage = net.meta.normalization.averageImage ;
 
   % configure model options
   modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
@@ -74,6 +74,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   modelOpts.numClasses = 21 ; % includes background for pascal
   modelOpts.confThresh = 0.05 ;
   modelOpts.maxPredsPerImage = 100 ; 
+  modelOpts.classAgnosticReg = false ; 
   modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
 
   % configure dataset options

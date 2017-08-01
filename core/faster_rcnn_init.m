@@ -148,7 +148,8 @@ function net = faster_rcnn_init(opts, varargin)
   net = Net(rpn_multitask_loss, multitask_loss) ;
 
   % set meta information to match original training code
-  net.meta.normalization.averageImage = [122.771, 115.9465, 102.9801] ; 
+  rgb = [122.771, 115.9465, 102.9801] ;
+  net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
 
 % ---------------------------------------------------------------------
 function net = add_block(net, name, opts, sz, nonLinearity, varargin)

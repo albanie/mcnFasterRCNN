@@ -1,8 +1,6 @@
 function batchData = faster_rcnn_train_get_batch(imdb, batch, bopts, varargin)
 % SSD_TRAIN_GET_BATCH generates mini batches for training faster r-cnn 
 
-DEBUG = 0 ; % force flip
-
 imNames = imdb.images.name(batch) ; imPathTemplates = imdb.images.paths(batch) ;
 imPaths = cellfun(@(x,y) sprintf(x, y), imPathTemplates, imNames, 'Uni', 0) ;
 annotations = imdb.annotations(batch) ;
@@ -12,15 +10,13 @@ labels = cellfun(@(x) {single(x.classes)}, annotations) ;
 imsz = double(imdb.images.imageSizes{batch}) ;
 maxSc = bopts.maxScale ; factor = max(bopts.scale ./ imsz) ; 
 if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ; data = single(zeros([imInfo(1:2) 3 numel(batch)])) ; RGB = [122.7717, 115.9465, 102.9801] ; % follow girshick here
+newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ; 
+data = single(zeros([imInfo(1:2) 3 numel(batch)])) ; 
+RGB = [122.7717, 115.9465, 102.9801] ; % follow girshick here
 imMean = permute(RGB, [3 1 2]) ;
 
 % randomly generate resize methods
-if DEBUG
-  resizers = {'bilinear'} ;
-else
-  resizers = bopts.resizers(randi(numel(bopts.resizers), 1, numel(batch))) ;
-end
+resizers = bopts.resizers(randi(numel(bopts.resizers), 1, numel(batch))) ;
 
 for i = 1:numel(batch)
   im = single(imread(imPaths{i})) ; sz = size(im) ;
@@ -97,11 +93,7 @@ for i = 1:numel(batch)
   end
 
   im = bsxfun(@minus, im, imMean) ; % match caffe pre-proc order
-  if DEBUG
-    im = imresize(im, imInfo(3), 'method', resizers{i}) ; 
-  else
-    im = imresize(im, imInfo(1:2), 'method', resizers{i}) ;  % num check
-  end
+  im = imresize(im, imInfo(1:2), 'method', resizers{i}) ;  % num check
 
   if bopts.flipOpts.use && rand < bopts.flipOpts.prob % flipping
     im = fliplr(im) ;
@@ -117,7 +109,7 @@ for i = 1:numel(batch)
 end
 
 if bopts.useGpu, data = gpuArray(data) ; end
-%if bopts.debug, viz_get_batch(data, labels, targets) ; end
+if bopts.debug, viz_get_batch(data, labels, targets) ; end
 
 batchData = {'data', data, 'gtLabels', labels, ...
              'gtBoxes', targets, 'imInfo', imInfo} ;

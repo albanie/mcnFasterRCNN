@@ -2,8 +2,8 @@ function faster_rcnn_demo_autonn(varargin)
 %FASTER_RCNN_DEMO Minimalistic demonstration of the faster-rcnn detector
 % using the dagnn wrapper
 
-modelDir = 'data/pascal/faster_rcnn-pascal-vt-2-vgg16-flip-broken/deployed' ;
-modelName = 'faster_rcnn_14.mat' ;
+modelDir = 'data/pascal/faster-rcnn-pascal-vt-2-vgg16-flip/deployed' ;
+modelName = 'local-faster-rcnn-pascal-14.mat' ;
 opts.modelPath = fullfile(modelDir, modelName) ;
 opts.nmsThresh = 0.3 ;
 opts.confThresh = 0.8 ;
@@ -35,7 +35,6 @@ data = imresize(im, factor, 'bilinear') ;
 in = {'data', data, 'im_info', imInfo} ; net.eval(in, 'forward') ;
 probs = squeeze(net.getValue('cls_prob')) ;
 deltas = squeeze(net.getValue('bbox_pred')) ;
-%r_deltas = squeeze(net.getValue('rpn_bbox_pred')) ;
 
 % load the raw proposals (before refinement)
 props = net.getValue('proposal') ; 

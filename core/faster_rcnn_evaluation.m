@@ -85,7 +85,11 @@ function decodedPreds = decodePredictions(p, imdb, testIdx, opts)
       target = c + 1 ; % add offset for bg class
 
       % compute regressed proposals
-      tBoxes = cBoxes(:,(target-1)*4+1:(target)*4) ;
+      if ~opts.modelOpts.classAgnosticReg
+        tBoxes = cBoxes(:,(target-1)*4+1:(target)*4) ;
+      else
+        tBoxes = cBoxes(:,5:8) ; % shared set of regressors
+      end
       tScores = cPreds_(target,:)' ;
       cls_dets = [tBoxes tScores] ;
       
@@ -156,7 +160,8 @@ function p = computePredictions(net, imdb, testIdx, opts)
   else
     topK = opts.modelOpts.maxPreds ; numClasses = opts.modelOpts.numClasses ;
     p.clsPreds = zeros(numClasses, topK, numel(testIdx), 'single') ; 
-    p.bboxPreds = zeros(4 * numClasses, topK, numel(testIdx), 'single') ; 
+    if opts.modelOpts.classAgnosticReg, b = 8 ; else, b = 4*numClasses ; end
+    p.bboxPreds = zeros(b, topK, numel(testIdx), 'single') ; 
     p.rois = zeros(4, topK, numel(testIdx), 'single') ; 
     startup ;  % fix for parallel oddities
     spmd
@@ -168,6 +173,7 @@ function p = computePredictions(net, imdb, testIdx, opts)
       p.bPreds(:,:,state_.computedIdx) = state_.bboxPreds ;
       p.rois(:,:,state_.computedIdx) = state_.rois ;
     end
+    p = rmfield(p, 'bboxPreds') ; p = rmfield(p, 'clsPreds') ; % clean up
   end
 
 % -------------------------------------------------------------------
@@ -190,8 +196,11 @@ function state = processDetections(net, imdb, params, opts, varargin)
   topK = opts.modelOpts.maxPreds ; 
   numClasses = opts.modelOpts.numClasses ;
 
+  % The number of bbox predictions stored depends on whether the model makes
+  % "per-class" predictions, or is agnostic to category for regression
+  if opts.modelOpts.classAgnosticReg, b = 8 ; else, b = 4*numClasses ; end
+  state.bboxPreds = zeros(b, topK, numel(computedIdx), 'single') ; 
   state.clsPreds = zeros(numClasses, topK, numel(computedIdx), 'single') ; 
-  state.bboxPreds = zeros(4 * numClasses, topK, numel(computedIdx), 'single') ; 
   state.rois = zeros(4, topK, numel(computedIdx), 'single') ; 
   state.computedIdx = computedIdx ; 
 
@@ -218,15 +227,16 @@ function state = processDetections(net, imdb, params, opts, varargin)
       opts.modelOpts.get_eval_batch(imdb, args{:}, 'prefetch', true) ;
     end
 
-    net.eval(inputs, 'forward') ;
-    storeIdx = offset:offset + numel(batch) - 1 ; offset = offset + numel(batch) ;
-    cPreds = net.getValue('cls_prob'); 
-    bPreds = net.getValue('bbox_pred') ; 
-    rois = net.getValue('proposal') ; 
+    net.eval(inputs, 'test') ;
+    storeIdx = offset:offset + numel(batch) - 1 ; 
+    offset = offset + numel(batch) ;
+    cPreds = gather(net.getValue('cls_prob')) ; 
+    bPreds = gather(net.getValue('bbox_pred')) ; 
+    rois = gather(net.getValue('proposal')) ; 
 
-    state.clsPreds(:,1:size(cPreds,4),storeIdx) = gather(squeeze(cPreds)) ;
-    state.bboxPreds(:,1:size(bPreds,4),storeIdx) = gather(squeeze(bPreds)) ;
-    state.rois(:,1:size(rois,2),storeIdx) = gather(rois(2:end,:)) ;
+    state.clsPreds(:,1:size(cPreds,4),storeIdx) = squeeze(cPreds) ;
+    state.bboxPreds(:,1:size(bPreds,4),storeIdx) = squeeze(bPreds) ;
+    state.rois(:,1:size(rois,2),storeIdx) = rois(2:end,:) ;
     time = toc(start) + adjustTime ; batchTime = time - stats.time ;
     stats.num = num ; stats.time = time ; currentSpeed = batchSize / batchTime ;
     averageSpeed = (t + batchSize - 1) / time ;

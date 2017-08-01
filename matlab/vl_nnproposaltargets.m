@@ -1,15 +1,15 @@
 function [r, l, t, iw, ow, cw] = vl_nnproposaltargets(p, gb, gl, varargin)
 %VL_NNPROPOSALTARGETS produces training targets for proposals
 
-  opts.roiBatchSize = 128 ;
   opts.bgClass = 1 ;
-  opts.fgRatio = 0.5 ;
+  opts.fgRatio = 0.25 ;
   opts.fgThresh = 0.5 ;
   opts.bgThreshLo = 0 ;
   opts.bgThreshHi = 0.5 ;
   opts.numClasses = 21 ;
   opts.negLabel = 1 ; % note: this is different to caffe (-1=ignore, 0=neg)
   opts.insideWeight = 1 ;
+  opts.roiBatchSize = 128 ;
   opts.normalizeTargets = 1 ;
   opts.normalizeMeans = [0, 0, 0, 0] ;
   opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
