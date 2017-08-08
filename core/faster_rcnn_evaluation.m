@@ -48,47 +48,24 @@ function res = checkCache(opts, net, imdb, testIdx)
 function decodedPreds = decodePredictions(p, imdb, testIdx, opts) 
 % -------------------------------------------------------------------------
   numClasses = numel(imdb.meta.classes) ; 
-  % gather predictions by class, and store the corresponding 
-  % image id (i.e. image name) and bouding boxes
   imageIds = cell(1, numClasses) ;
   scores = cell(1, numClasses) ;
   bboxes = cell(1, numClasses) ;
-
-  cPreds = p.cPreds ; 
-  bPreds = p.bPreds ; 
-  rois = p.rois ; 
+  cPreds = p.cPreds ; bPreds = p.bPreds ; 
 
   for t = 1:numel(testIdx)
-
-    imsz = single(imdb.images.imageSizes{testIdx(t)}) ;
-    maxSc = opts.batchOpts.maxScale ; 
-    factor = max(opts.batchOpts.scale ./ imsz) ; 
-    if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
-
     % find predictions for current image
-    cPreds_ = cPreds(:,:,t) ; 
-    bPreds_ = bPreds(:,:,t)' ; 
-
-    rois_ = rois(:,:,t)' ; 
-    keep = find(rois_(:,4) ~= 0) ; % drop unused RoIs
-    rois_ = rois_(keep,:) ; 
-    bPreds_ = bPreds_(keep,:) ; 
-    cPreds_ = cPreds_(:,keep) ;
-    rois_ = rois_ - 1 ; % undo offset required by roipool
-    boxes = rois_ / factor ;
-    cBoxes = bboxTransformInv(boxes, bPreds_) ;
-    cBoxes = clipBoxes(cBoxes, imsz) ;
-
-    numKept = 0 ;
+    cPreds_ = cPreds(:,:,t) ;  boxes = bPreds(:,:,t)' ; 
+    keep = find(boxes(:,4) ~= 0) ; % drop unused RoIs
+    boxes = boxes(keep,:) ; cPreds_ = cPreds_(:,keep) ; numKept = 0 ;
 
     for c = 1:numClasses - 1 % don't store bg 
       target = c + 1 ; % add offset for bg class
-
       % compute regressed proposals
       if ~opts.modelOpts.classAgnosticReg
-        tBoxes = cBoxes(:,(target-1)*4+1:(target)*4) ;
+        tBoxes = boxes(:,(target-1)*4+1:(target)*4) ;
       else
-        tBoxes = cBoxes(:,5:8) ; % shared set of regressors
+        tBoxes = boxes(:,5:8) ; % shared set of regressors
       end
       tScores = cPreds_(target,:)' ;
       cls_dets = [tBoxes tScores] ;
@@ -99,42 +76,32 @@ function decodedPreds = decodePredictions(p, imdb, testIdx, opts)
       if ~numel(keep), continue ; end
 
       % TODO(samuel): Move last round of NMS into the computePredictions 
-      % function for a fair timing benchmark 
+      % function for a fair timing benchmark (although this does match how
+      % Girshick does it currently)
       % heuristic: keep a fixed number of dets per class per image before nms
-      [~,si] = sort(cls_dets(:,5),'descend') ;
-      cls_dets = cls_dets(si,:) ;
+      [~,si] = sort(cls_dets(:,5),'descend') ; cls_dets = cls_dets(si,:) ;
       numKeep = min(size(cls_dets,1),opts.modelOpts.maxPredsPerImage) ;
       cls_dets = cls_dets(1:numKeep,:) ;
-
       keep = vl_nnbboxnms(cls_dets', opts.modelOpts.nmsThresh) ;
-      %keep = bbox_nms(cls_dets, opts.modelOpts.nmsThresh) ;
       cls_dets = cls_dets(keep, :) ;
 
       if numel(keep)
         numKept = numKept + numel(keep) ;
-        pBoxes = cls_dets(:,1:4) + 1 ; % fix offset
+        pBoxes = cls_dets(:,1:4) + 1 ; % Top left is (1,1) in VOC notation
         pScores = cls_dets(:,5) ;
-
         pBoxes = round(pBoxes, 2) ; % save storage space
         pScores = round(pScores, 5) ;
         switch opts.dataOpts.resultsFormat
-          case 'minMax'
-            % do nothing
-          case 'minWH'
-            pBoxes = [ pBoxes(:, 1:2) pBoxes(:,3:4) - pBoxes(:,1:2) ] ;
-          otherwise
-            error('format %s not recognised', opts.dataOpts.resultsFormat) ;
+          case 'minMax', % do nothing
+          case 'minWH', pBoxes = [ pBoxes(:, 1:2) pBoxes(:,3:4) - pBoxes(:,1:2) ] ;
+          otherwise, error('%s not recognised', opts.dataOpts.resultsFormat) ;
         end
-
         scores{c} = vertcat(scores{c}, pScores) ;
         bboxes{c} = vertcat(bboxes{c}, pBoxes) ;
-
-        % image ids are used differently by the two datasets
-        switch opts.dataOpts.name
-          case 'pascal'
-            pId = imdb.images.name{testIdx(t)} ;
-          case 'coco'
-            pId = imdb.images.id(testIdx(t)) ;
+        
+        switch opts.dataOpts.name % ids are used differently by the datasets
+          case 'pascal', pId = imdb.images.name{testIdx(t)} ;
+          case 'coco', pId = imdb.images.id(testIdx(t)) ;
         end
         imageIds{c} = vertcat(imageIds{c}, repmat({pId}, size(pScores))) ; 
       end
@@ -156,13 +123,11 @@ function p = computePredictions(net, imdb, testIdx, opts)
   if numel(opts.gpus) <= 1
      state = processDetections(net, imdb, params, opts) ;
      p.cPreds = state.clsPreds ; p.bPreds = state.bboxPreds ;
-     p.rois = state.rois ;
   else
     topK = opts.modelOpts.maxPreds ; numClasses = opts.modelOpts.numClasses ;
     p.clsPreds = zeros(numClasses, topK, numel(testIdx), 'single') ; 
     if opts.modelOpts.classAgnosticReg, b = 8 ; else, b = 4*numClasses ; end
     p.bboxPreds = zeros(b, topK, numel(testIdx), 'single') ; 
-    p.rois = zeros(4, topK, numel(testIdx), 'single') ; 
     startup ;  % fix for parallel oddities
     spmd
      state = processDetections(net, imdb, params, opts) ;
@@ -171,7 +136,6 @@ function p = computePredictions(net, imdb, testIdx, opts)
       state_ = state{i} ;
       p.cPreds(:,:,state_.computedIdx) = state_.clsPreds ;
       p.bPreds(:,:,state_.computedIdx) = state_.bboxPreds ;
-      p.rois(:,:,state_.computedIdx) = state_.rois ;
     end
     p = rmfield(p, 'bboxPreds') ; p = rmfield(p, 'clsPreds') ; % clean up
   end
@@ -201,7 +165,6 @@ function state = processDetections(net, imdb, params, opts, varargin)
   if opts.modelOpts.classAgnosticReg, b = 8 ; else, b = 4*numClasses ; end
   state.bboxPreds = zeros(b, topK, numel(computedIdx), 'single') ; 
   state.clsPreds = zeros(numClasses, topK, numel(computedIdx), 'single') ; 
-  state.rois = zeros(4, topK, numel(computedIdx), 'single') ; 
   state.computedIdx = computedIdx ; 
 
   offset = 1 ; sc = sopts.scale ;
@@ -231,75 +194,19 @@ function state = processDetections(net, imdb, params, opts, varargin)
     storeIdx = offset:offset + numel(batch) - 1 ; 
     offset = offset + numel(batch) ;
 
-    % THe final rounds of NMS will be done on the CPU
+    % THe final rounds of NMS will be done on the CPU during decoding
     cPreds = gather(net.getValue('cls_prob')) ; 
     bPreds = gather(net.getValue('bbox_pred')) ; 
     rois = gather(net.getValue('proposal')) ; 
 
     im_info = inputs{4} ; factor = im_info(3) ;
     imsz = round(im_info(1:2) / factor) ;
-    rois= rois(2:end,:) - 1 ; % undo offset required by roipool
-    boxes = rois_local / factor ;
+    boxes = (rois(2:end,:) - 1) / factor ; % undo offset required by roipool
     cBoxes = bboxTransformInv(boxes, squeeze(bPreds)) ;
     cBoxes = clipBoxes(cBoxes, imsz) ;
 
-
-    % DEBUG performance difference (has to be on CPU for greater precision)
-    if 1
-      net.move('cpu') ;
-      inputs_ = inputs ;
-      inputs_{2} = gather(inputs{2}) ;
-      net.eval(inputs_, 'test') ;
-      blobs = load('faster-rcnn-test-blobs.mat') ;
-
-      im = gather(inputs{2}) ;
-      im2 = permute(blobs.data, [3 4 2 1]) ; im2 = im2(:,:, [3 2 1]) ;
-      diff = sum(abs(im(:)) - abs(im2(:))) / sum(abs(im(:))) ;
-      fprintf('diff: %g\n', diff) ;
-
-      src = {'pool1', 'relu2_1', 'pool2', 'relu3_1', 'relu4_1', 'relu5_3', ...
-              'rpn_cls_score', ...
-              'rpn_bbox_pred', ...
-              'rpn_cls_score_reshape', ...
-              'rpn_cls_prob', ...
-              'rpn_cls_prob_reshape', ...
-              'proposal', ...
-              'roi_pool5', ...
-              'fc6', ...
-              'fc7', ...
-              'cls_score', ...
-              'cls_prob', ...
-              'bbox_pred'} ;
-      for ss = 1:numel(src)
-        xName = src{ss} ;
-        xName_ = strrep(xName, 'relu', 'conv') ;
-        xName_ = strrep(xName_, 'proposal', 'rois') ;
-        xName_ = strrep(xName_, 'roi_pool5', 'pool5') ;
-        x = gather(net.getValue(xName)) ;
-        x2 = permute(blobs.(xName_), [3 4 2 1]) ;
-        if strcmp(xName, 'proposal'), keyboard ; end
-        diff = sum(abs(x(:)) - abs(x2(:))) / sum(abs(x(:))) ;
-        fprintf('diff: %g\n', diff) ;
-      end
-
-    % roi comparison
-    rois_local = net.getValue('proposal') ;
-    cPreds = gather(net.getValue('cls_prob')) ; 
-    bPreds = gather(net.getValue('bbox_pred')) ; 
-
-    rois_caffe = blobs.rois ;
-    factor = inputs{4}(3) ;
-
-    rois_local = rois_local(2:end,:) - 1 ; % undo offset required by roipool
-    boxes = rois_local / factor ;
-    cBoxes = bboxTransformInv(boxes, squeeze(bPreds)) ;
-    im_info = inputs{4} ; imsz = round(im_info(1:2) / im_info(3)) ;
-    cBoxes = clipBoxes(cBoxes, imsz) ;
-    end
-
-    state.clsPreds(:,1:size(cPreds,4),storeIdx) = squeeze(cPreds) ;
-    state.bboxPreds(:,1:size(bPreds,4),storeIdx) = squeeze(bPreds) ;
-    state.rois(:,1:size(rois,2),storeIdx) = rois(2:end,:) ;
+    state.clsPreds(:,1:size(cPreds,4),storeIdx) = cPreds ;
+    state.bboxPreds(:,1:size(bPreds,4),storeIdx) = cBoxes ;
     time = toc(start) + adjustTime ; batchTime = time - stats.time ;
     stats.num = num ; stats.time = time ; currentSpeed = batchSize / batchTime ;
     averageSpeed = (t + batchSize - 1) / time ;

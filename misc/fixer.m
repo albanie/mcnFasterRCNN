@@ -17,6 +17,11 @@ function fixer(varargin)
   srcPath = fullfile(vl_rootnn, 'data/models-import', opts.modelName) ;
   dag = dagnn.DagNN.loadobj(load(srcPath)) ;
 
+  pIdx = dag.getLayerIndex('proposal') ; % fix proposal layer opt types
+  scales = double(dag.layers(pIdx).block.scales) ;
+  dag.layers(pIdx).block.scales = reshape(scales, 1, [])  ;
+  dag.layers(pIdx).block.featStride = double(dag.layers(pIdx).block.featStride) ;
+
   for ii = 1:numel(dag.layers)
     if isa(dag.layers(ii).block, 'dagnn.Reshape')
       switch dag.layers(ii).name
@@ -31,8 +36,8 @@ function fixer(varargin)
   end
 
   % fix filter layout
-  %p = dag.params(dag.getParamIndex('fc6_filter')).value ;
-  %p = reshape(p, 7,7,[], size(p,4)) ;
-  %p = permute(p, [2 1 3 4]) ;
-  %dag.params(dag.getParamIndex('fc6_filter')).value = p ;
-  net = dag.saveobj() ; save(srcPath, '-struct', 'net') ;
+  p = dag.params(dag.getParamIndex('fc6_filter')).value ;
+  p = reshape(p, 7,7,[], size(p,4)) ;
+  p = permute(p, [2 1 3 4]) ;
+  dag.params(dag.getParamIndex('fc6_filter')).value = p ;
+  net = dag.saveobj() ; save(srcPath, '-struct', 'net') ; %#ok

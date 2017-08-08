@@ -49,12 +49,13 @@ function y = vl_nnproposalrpn(x, b, imInfo, varargin)
   [shiftX, shiftY] = meshgrid(shiftX, shiftY) ;
   shiftX_T = shiftX' ; shiftY_T = shiftY' ;
   shifts = [shiftX_T(:)  shiftY_T(:) shiftX_T(:)  shiftY_T(:) ] ;
-  anchors = bsxfun(@plus, permute(anchors, [3 1 2]), reshape(shifts, [], 1, 4)) ;
+  % restructured to improve speed
+  anchors = bsxfun(@plus, permute(anchors, [1 3 2]), reshape(shifts, 1, [], 4)) ;
 
   % reshape to a common layout to apply bbox predictions
-  anchors = reshape(permute(anchors, [2 1 3]), [], 4) ;
-  bboxDeltas = reshape(permute(b, [3 2 1]), 4, [])' ;
-  scores = reshape(permute(scores, [3 2 1]), [], 1) ;
+  anchors = reshape(anchors, [], 4)' ;
+  bboxDeltas = reshape(permute(b, [3 2 1]), 4, []) ;
+  scores = reshape(permute(scores, [3 2 1]), 1, []) ;
   proposals = bboxTransformInv(anchors, bboxDeltas) ;
   proposals = clipBoxes(proposals, imInfo) ;
 
@@ -64,31 +65,31 @@ function y = vl_nnproposalrpn(x, b, imInfo, varargin)
     % An Implementation of Faster RCNN with Study for Region Sampling, 
     % X. Chen, A. Gupta, https://arxiv.org/pdf/1702.02138.pdf, 2017
     keep = filterPropsoals(proposals, opts.minSize *imInfo(3)) ;
-    proposals = proposals(keep,:) ;
+    proposals = proposals(:,keep) ;
     scores = scores(keep) ;
   end
   [~,sIdx] = sort(scores, 'descend') ;
 
   % apply pre-NMS proposal cutoff
   if opts.preNMSTopN, sIdx = sIdx(1:min(numel(sIdx), opts.preNMSTopN)) ; end
-  proposals = proposals(sIdx,:) ; scores = scores(sIdx) ;
+  proposals = proposals(:,sIdx) ; scores = scores(sIdx) ;
 
   switch opts.nms
-    case 'gpu', keep = vl_nnbboxnms([proposals'; scores'], opts.nmsThresh) ;
-    case 'cpu', keep = bbox_nms(gather([proposals scores]), opts.nmsThresh) ;
+    case 'gpu', keep = vl_nnbboxnms([proposals ; scores], opts.nmsThresh) ;
+    case 'cpu', keep = bbox_nms(gather([proposals' scores']), opts.nmsThresh) ;
     otherwise, error('nms processing type %s not recognised', opts.nms) ;
   end
 
   % apply post-NMS proposal cutoff
   if opts.postNMSTopN, keep = keep(1:min(numel(keep), opts.postNMSTopN)) ; end
-  proposals = proposals(keep,:) + 1 ; % fix indexing expected by ROI layer
+  proposals = proposals(:,keep) + 1 ; % fix indexing expected by ROI layer
 
   imIds = ones(1, numel(keep)) ; 
-  y = vertcat(imIds, proposals') ;
+  y = vertcat(imIds, proposals) ;
 
 % -------------------------------------------------
 function keep = filterPropsoals(proposals, minSize)
 % -------------------------------------------------
-  W = proposals(:,3) - proposals(:,1) + 1 ;
-  H = proposals(:,4) - proposals(:,2) + 1 ;
+  W = proposals(3,:) - proposals(1,:) + 1 ;
+  H = proposals(4,:) - proposals(2,:) + 1 ;
   keep = find(W >= minSize & H >= minSize) ;

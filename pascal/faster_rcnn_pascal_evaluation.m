@@ -37,7 +37,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 % All rights reserved.
 
   opts.net = [] ;
-  opts.gpus = [2 3 4] ;
+  opts.gpus = 4 ;
   opts.nms = 'cpu' ;  
   opts.refreshCache = true ;
   opts.evalVersion = 'fast' ;
@@ -58,13 +58,13 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 
   % evaluation options
   opts.testset = 'test' ; 
-  opts.prefetch = false ;
+  opts.prefetch = true ; % has limited value on small batches
 
   % configure batch opts
   batchOpts.scale = 600 ;
   batchOpts.maxScale = 1000 ;
-  batchOpts.use_vl_imreadjpeg = 1 ; 
-  batchOpts.batchSize = numel(opts.gpus) * 1 ;
+  batchOpts.use_vl_imreadjpeg = 1 ;
+  batchOpts.batchSize = max(numel(opts.gpus) * 1, 1) ; % use bsize 1 on cpu
   batchOpts.numThreads = numel(opts.gpus) * 4 ;
   batchOpts.averageImage = net.meta.normalization.averageImage ;
 
@@ -72,7 +72,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
   modelOpts.nmsThresh = 0.3 ;
   modelOpts.numClasses = 21 ; % includes background for pascal
-  modelOpts.confThresh = 0.05 ;
+  modelOpts.confThresh = 0.0 ;
   modelOpts.maxPredsPerImage = 100 ; 
   modelOpts.classAgnosticReg = false ; 
   modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
@@ -134,7 +134,7 @@ function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
 
   BENCHMARK = 0 ;
   if BENCHMARK  % benchmark
-    keep = 100 ; testIdx = find(imdb.images.set == 3) ;
+    keep = 5 ; testIdx = find(imdb.images.set == 3) ;
     imdb.images.set(testIdx(keep+1:end)) = 4 ;
   end
   opts.dataOpts = configureVOC(expDir, opts.dataOpts, 'test') ;

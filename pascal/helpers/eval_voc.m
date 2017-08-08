@@ -100,13 +100,11 @@ end
 function ap = VOCap07(rec,prec)
 % -----------------------------
 % From the PASCAL VOC 2007 devkit
-ap=0;
-for t=0:0.1:1
-    p=max(prec(rec>=t));
-    if isempty(p)
-        p=0;
-    end
-    ap=ap+p/11;
+ap = 0 ;
+for t = 0:0.1:1
+    p = max(prec(rec>=t)) ;
+    if isempty(p), p=0 ; end
+    ap = ap + (p/11) ;
 end
 
 
