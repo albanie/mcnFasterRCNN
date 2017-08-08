@@ -27,7 +27,7 @@ function batchData = faster_rcnn_eval_get_batch(imdb, batch, opts, varargin)
       'Interpolation', 'bilinear', ...
       'SubtractAverage', imMean, ...
       'CropAnisotropy', [1 1] ...
-      'Resize', newSz} ;
+      'Resize', min(factor * imsz)} ;
 
     if useGpu > 0, args{end+1} = {'Gpu'} ; end
     args = horzcat(args(1), args{2:end}) ;
@@ -37,9 +37,9 @@ function batchData = faster_rcnn_eval_get_batch(imdb, batch, opts, varargin)
     else
       out = vl_imreadjpeg(args{:}) ; data = out{1} ; 
     end
-  else
+  else % mainly worth keeping for numerical checks
     im = single(imread(imPaths{1})) ; im = bsxfun(@minus, im, imMean) ;
-    data = imresize(im, newSz, 'bilinear') ; 
+    data = imresize(im, factor, 'bilinear') ; 
     if useGpu, data = gpuArray(data) ; end
   end
 

@@ -230,9 +230,72 @@ function state = processDetections(net, imdb, params, opts, varargin)
     net.eval(inputs, 'test') ;
     storeIdx = offset:offset + numel(batch) - 1 ; 
     offset = offset + numel(batch) ;
+
+    % THe final rounds of NMS will be done on the CPU
     cPreds = gather(net.getValue('cls_prob')) ; 
     bPreds = gather(net.getValue('bbox_pred')) ; 
     rois = gather(net.getValue('proposal')) ; 
+
+    im_info = inputs{4} ; factor = im_info(3) ;
+    imsz = round(im_info(1:2) / factor) ;
+    rois= rois(2:end,:) - 1 ; % undo offset required by roipool
+    boxes = rois_local / factor ;
+    cBoxes = bboxTransformInv(boxes, squeeze(bPreds)) ;
+    cBoxes = clipBoxes(cBoxes, imsz) ;
+
+
+    % DEBUG performance difference (has to be on CPU for greater precision)
+    if 1
+      net.move('cpu') ;
+      inputs_ = inputs ;
+      inputs_{2} = gather(inputs{2}) ;
+      net.eval(inputs_, 'test') ;
+      blobs = load('faster-rcnn-test-blobs.mat') ;
+
+      im = gather(inputs{2}) ;
+      im2 = permute(blobs.data, [3 4 2 1]) ; im2 = im2(:,:, [3 2 1]) ;
+      diff = sum(abs(im(:)) - abs(im2(:))) / sum(abs(im(:))) ;
+      fprintf('diff: %g\n', diff) ;
+
+      src = {'pool1', 'relu2_1', 'pool2', 'relu3_1', 'relu4_1', 'relu5_3', ...
+              'rpn_cls_score', ...
+              'rpn_bbox_pred', ...
+              'rpn_cls_score_reshape', ...
+              'rpn_cls_prob', ...
+              'rpn_cls_prob_reshape', ...
+              'proposal', ...
+              'roi_pool5', ...
+              'fc6', ...
+              'fc7', ...
+              'cls_score', ...
+              'cls_prob', ...
+              'bbox_pred'} ;
+      for ss = 1:numel(src)
+        xName = src{ss} ;
+        xName_ = strrep(xName, 'relu', 'conv') ;
+        xName_ = strrep(xName_, 'proposal', 'rois') ;
+        xName_ = strrep(xName_, 'roi_pool5', 'pool5') ;
+        x = gather(net.getValue(xName)) ;
+        x2 = permute(blobs.(xName_), [3 4 2 1]) ;
+        if strcmp(xName, 'proposal'), keyboard ; end
+        diff = sum(abs(x(:)) - abs(x2(:))) / sum(abs(x(:))) ;
+        fprintf('diff: %g\n', diff) ;
+      end
+
+    % roi comparison
+    rois_local = net.getValue('proposal') ;
+    cPreds = gather(net.getValue('cls_prob')) ; 
+    bPreds = gather(net.getValue('bbox_pred')) ; 
+
+    rois_caffe = blobs.rois ;
+    factor = inputs{4}(3) ;
+
+    rois_local = rois_local(2:end,:) - 1 ; % undo offset required by roipool
+    boxes = rois_local / factor ;
+    cBoxes = bboxTransformInv(boxes, squeeze(bPreds)) ;
+    im_info = inputs{4} ; imsz = round(im_info(1:2) / im_info(3)) ;
+    cBoxes = clipBoxes(cBoxes, imsz) ;
+    end
 
     state.clsPreds(:,1:size(cPreds,4),storeIdx) = squeeze(cPreds) ;
     state.bboxPreds(:,1:size(bPreds,4),storeIdx) = squeeze(bPreds) ;
