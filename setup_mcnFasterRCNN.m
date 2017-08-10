@@ -1,6 +1,9 @@
 function setup_mcnFasterRCNN()
 %SETUP_MCNFASTERRCNN Sets up mcnFasterRCNN, by adding its folders 
 % to the Matlab path
+%
+% Copyright (C) 2017 Samuel Albanie
+% Licensed under The MIT License [see LICENSE.md for details]
 
   root = fileparts(mfilename('fullpath')) ;
   addpath(root) ;
