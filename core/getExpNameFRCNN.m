@@ -20,3 +20,4 @@ function expName = getExpNameFRCNN(mopts, dopts, train)
   lr = unique(train.learningRate) ;
   lrStr = strjoin(arrayfun(@(x) {num2str(x)}, lr), '-') ;
   expName = [ expName '-lr-' lrStr] ;
+  expName = [ expName '-' mopts.initMethod ] ;

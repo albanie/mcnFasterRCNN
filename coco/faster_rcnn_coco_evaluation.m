@@ -120,7 +120,7 @@ function aps = coco_eval_func(~, decoded, imdb, opts)
   table_ = table(image_id, category_id, bbox, score) ; res = table2struct(table_) ;
 
   % encode as json (this may take a little while...., the gason func adds to storage)
-  cocoJason = jsonencode(res) ;  template = 'detections_%s%d_%s%d.mat' ; 
+  cocoJason = gason(res) ;  template = 'detections_%s%d_%s%d.mat' ; 
   resFile = sprintf(template, opts.testset, opts.dataOpts.year, opts.modelName) ; 
   resPath = fullfile(opts.cacheOpts.evalCacheDir, resFile) ;
   fid = fopen(resPath, 'w') ; fprintf(fid, cocoJason) ; fclose(fid) ;
@@ -136,7 +136,8 @@ function aps = coco_eval_func(~, decoded, imdb, opts)
     cocoDt = cocoGt.loadRes(resPath) ; % load detections
     cocoEval = CocoEval(cocoGt, cocoDt, 'bbox') ;
     imgIds = sort(cocoGt.getImgIds());  cocoEval.params.imgIds = imgIds ;
-    cocoEval.evaluate() ; cocoEval.accumulate() ; cocoEval.summarize() ;
+    cocoEval.evaluate() ; cocoEval.accumulate() ; 
+    cocoEval.summarize() ;
     aps = cocoEval.eval ;
     if opts.debug, visualizeRes(res, cocoEval, imdb) ; end % for debugging
   end

@@ -21,7 +21,6 @@ function [y, dzdl] = vl_nnmultitaskloss(x, l, varargin)
 
 opts.locWeight = 1 ;
 [opts, dzdy] = vl_argparsepos(opts, varargin, 'nonrecursive') ;
-keyboard
 
 if isempty(dzdy)
     y = x + opts.locWeight * l ;

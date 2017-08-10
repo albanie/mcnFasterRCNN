@@ -1,5 +1,6 @@
 function batchData = faster_rcnn_train_get_batch(imdb, batch, bopts, varargin)
-% SSD_TRAIN_GET_BATCH generates mini batches for training faster r-cnn 
+% SSD_TRAIN_GET_BATCH generates mini batches for training faster r-cnn, with 
+% the option to apply SSD-style data augmentation
 
   imNames = imdb.images.name(batch) ; imPathTemplates = imdb.images.paths(batch) ;
   imPaths = cellfun(@(x,y) sprintf(x, y), imPathTemplates, imNames, 'Uni', 0) ;

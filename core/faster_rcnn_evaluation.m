@@ -39,6 +39,7 @@ function res = checkCache(opts, net, imdb, testIdx)
     tmp = load(path) ; res = tmp.results ;
   else
     p = computePredictions(net, imdb, testIdx, opts) ;
+    %p = load('/tmp/pred.mat') ;
     decoded = decodePredictions(p, imdb, testIdx, opts) ;
     s.results = opts.dataOpts.eval_func(opts.modelName, decoded, imdb, opts) ;
     fprintf('saving to %s\n', path) ; save(path, '-struct', 's', '-v7.3') ; 

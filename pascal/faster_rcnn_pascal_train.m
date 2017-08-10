@@ -7,37 +7,21 @@ function faster_rcnn_pascal_train(varargin)
   opts.architecture = 'vgg16' ;
   opts.pruneCheckpoints = true ;
   opts.flipAugmentation = true ;
-  opts.distortAugmentation = false ;
-  opts.zoomAugmentation = false ;
-  opts.patchAugmentation = false ;
+  opts.distortAugmentation = true ;
+  opts.zoomAugmentation = true ;
+  opts.patchAugmentation = true ;
   opts.use_vl_imreadjpeg = true ; 
   opts = vl_argparse(opts, varargin) ;
 
   % configure training options
-  train.batchSize = 1 ;
+  train.batchSize = numel(opts.gpus) ;
   train.derOutputs = 1 ; % give each loss the same weight
-
-  % ---------------
-  % EXPERIMENT 1:
-  % ---------------
-  % numSubBatches = 1 ;
-  % LR x2
-
-  % ---------------
-  % EXPERIMENT 2: (single GPU)
-  % ---------------
-  % numSubBatches = 1 ;
-  % LR
-
-  %EXP 3 -> change back bboxTransformInv
-
-  %train.numSubBatches = 2 ; %ceil(4 / max(numel(train.gpus), 1)) ;
   train.gpus = opts.gpus ;
+  train.numSubBatches = numel(train.gpus) ; %ceil(4 / max(numel(train.gpus), 1)) ;
   train.continue = opts.continue ;
   train.parameterServer.method = 'mmap' ;
   train.stats = {'rpn_loss_cls', 'rpn_loss_bbox','loss_cls', 'loss_bbox', ...
                         'multitask_loss'} ; % train end to end
-  %train.stats = {'rpn_loss_cls', 'rpn_loss_bbox','loss_cls', 'loss_bbox'} ; % train end to end
 
   % configure dataset options
   dataOpts.name = 'pascal' ;
@@ -69,10 +53,12 @@ function faster_rcnn_pascal_train(varargin)
   modelOpts.batchNormalization = false ;
   modelOpts.batchRenormalization = false ;
   modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
+  modelOpts.initMethod = 'gaussian' ;
+  modelOpts.protoPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/train.pt') ;
 
   % Set learning rates
   steadyLR = 0.001 ;
-  gentleLR = 0.0001 ; % fix weighting
+  gentleLR = 0.0001 ; 
   vGentleLR = 0.00001 ;
 
   % this should correspond (approximately) to the 70,000 iterations 

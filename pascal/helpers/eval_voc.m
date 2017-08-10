@@ -73,9 +73,9 @@ switch opts.evalVersion
         error(sprintf('Evaluation version %s not recognised', opts.evalVersion)) ;
 end
 
-% high risk 
-%fprintf('NOTE: you are evaluating on unsual setting\n') ;
 ap_auc = VOCap07(recall, prec) ;
+
+%fprintf('NOTE: you are evaluating on unsual setting (2010) \n') ;
 %ap_auc = xVOCap(recall, prec) ;
 
 % force plot limits

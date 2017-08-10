@@ -28,11 +28,17 @@ function net = faster_rcnn_init(opts, varargin)
 
   net = vl_simplenn_tidy(load(trunkPath)) ; net = dagnn.DagNN.fromSimpleNN(net) ;
 
-  % modify trunk biases learnning rate and weight decay to match caffe 
-  params = {'conv1_1b', 'conv1_2b', 'conv2_1b', 'conv2_2b', 'conv3_1b', ...
-            'conv3_2b', 'conv3_3b', 'conv4_1b', 'conv4_2b', 'conv4_3b' ...
-            'conv5_1b', 'conv5_2b', 'conv5_3b' 'fc6b', 'fc7b' } ;
-  for i = 1:length(params), net = matchCaffeBiases(net, params{i}) ; end
+  % freeze early layers and modify trunk biases to match caffe
+  freeze = {'conv1_1', 'conv1_2', 'conv2_1', 'conv2_2'} ;
+  for ii = 1:length(freeze)
+    pIdx = net.getParamIndex(net.layers(net.getLayerIndex(freeze{ii})).params) ;
+    [net.params(pIdx).learningRate] = deal(0) ;
+    [net.params(pIdx).weightDecay] = deal(0) ;
+  end
+  params = {'conv3_1b', 'conv3_2b', 'conv3_3b', 'conv4_1b', 'conv4_2b', ...
+          'conv4_3b', 'conv5_1b', 'conv5_2b', 'conv5_3b' 'fc6b', 'fc7b' } ;
+  for ii = 1:length(params), net = matchCaffeBiases(net, params{ii}) ; end
+
 
   if strcmp(opts.modelOpts.architecture, 'vgg16-reduced') % match caffe
     net.layers(net.getLayerIndex('fc6')).block.dilate = [6 6] ;
@@ -42,6 +48,7 @@ function net = faster_rcnn_init(opts, varargin)
     net.layers(net.getLayerIndex('pool5')).block.pad = [1 1 1 1] ;
   end
   net.removeLayer('fc8') ; net.removeLayer('prob') ; net.renameVar('x0', 'data') ;
+
 
   rng(0) ; % for reproducibility, fix the seed
 
@@ -145,17 +152,20 @@ function net = faster_rcnn_init(opts, varargin)
   args = {loss_cls, loss_bbox, 'locWeight', opts.modelOpts.locWeight} ;
   largs = {'name', 'multitask_loss'} ;
   multitask_loss = Layer.create(@vl_nnmultitaskloss, args, largs{:}) ;
+
+  checkLearningParams(rpn_multitask_loss, multitask_loss, opts) ;
   net = Net(rpn_multitask_loss, multitask_loss) ;
 
   % set meta information to match original training code
   rgb = [122.771, 115.9465, 102.9801] ;
   net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
 
+
 % ---------------------------------------------------------------------
 function net = add_block(net, name, opts, sz, nonLinearity, varargin)
 % ---------------------------------------------------------------------
 
-  filters = Param('value', init_weight(sz, 'single'), 'learningRate', 1) ;
+  filters = Param('value', init_weight(sz, 'single', opts), 'learningRate', 1) ;
   biases = Param('value', zeros(sz(4), 1, 'single'), 'learningRate', 2) ;
   cudaOpts = {'CudnnWorkspaceLimit', opts.modelOpts.CudnnWorkspaceLimit} ;
   net = vl_nnconv(net, filters, biases, varargin{:}, cudaOpts{:}) ;
@@ -176,14 +186,69 @@ function net = add_block(net, name, opts, sz, nonLinearity, varargin)
     net.name = sprintf('%s_relu', name) ;
   end
 
-% --------------------------------------
-function weights = init_weight(sz, type)
-% --------------------------------------
-% See K. He, X. Zhang, S. Ren, and J. Sun. Delving deep into
-% rectifiers: Surpassing human-level performance on imagenet
-% classification. CoRR, (arXiv:1502.01852v1), 2015.
+% ------------------------------------------------
+function checkLearningParams(rpn_loss, loss, opts)
+% ------------------------------------------------
+% compare parameters against caffe.  
+% TODO: this check can now be safely disabled
 
-  sc = sqrt(1/(sz(1)*sz(2)*sz(3))) ;
+  % create name map
+  nameMap = containers.Map ; 
+  nameMap('rpn_conv/3x3') = 'rpn_conv_3x3' ;
+  proto = fileread(opts.modelOpts.protoPath) ;
+
+  % mini parser
+  name = 'blank' ; stack = {} ; tokens = strsplit(proto, '\n') ; prev = '' ;
+  assert(contains(tokens{1}, 'VGG_ILSVRC_16'), 'wrong proto') ; tokens(1) = [] ; 
+  isBias = 0 ;
+  while ~isempty(tokens)
+    head = tokens{1} ; tokens(1) = [] ;
+    if contains(head, '}') && contains(head, '{') 
+      s = strfind(head, '{') ; e = strfind(head, '}') ; head = head(s+1:e-1) ;
+    elseif contains(head, '}'), stack(end) = [] ; 
+    elseif contains(head, '{'), stack{end+1} = head ; 
+    elseif contains(head, 'name') 
+      pair = strsplit(head, ':') ; 
+      name = strrep(strrep(pair{2}, '"', ''), ' ', '') ;
+      if isKey(nameMap, name), name = nameMap(name) ; end
+    end
+
+    if ~isempty(stack) && contains(head, {'lr_mult', 'decay'})
+      pair = strsplit(head, ':') ; x = str2double(pair{2}) ;
+      if contains(head, 'decay') 
+        target = 'weightDecay' ; 
+      else
+        target = 'learningRate' ; 
+      end
+      if ~strcmp(prev, name)
+        fprintf('filter %s (%s): %f \n', target, name, x) ;
+      else
+        fprintf('bias %s (%s): %f \n', target, name, x) ;
+      end
+      src = rpn_loss.find(name) ; 
+      if isempty(src), src = loss.find(name) ; end
+      layer = src{1} ; pos = find(cellfun(@(x) isa(x, 'Param'), layer.inputs)) ;
+      param = layer.inputs{pos + isBias} ; val = param.(target) ;
+      assert(val == x, sprintf('%s did not match for layer %s', target, name)) ;
+      isBias = ~isBias ; prev = name ;
+    end
+  end
+
+% --------------------------------------------
+function weights = init_weight(sz, type, opts)
+% --------------------------------------------
+% Match caffe fixed scale initialisation, which seems to do 
+% better than the Xavier heuristic here
+
+  switch opts.modelOpts.initMethod
+    case 'gaussian'
+      % in the original code, bounding box regressors are initialised 
+      % slightly differently
+      numRegressors = opts.modelOpts.numClasses * 4 ;
+      if sz(4) ~= numRegressors, sc = 0.01 ; else, sc = 0.001 ; end
+    case 'xavier', sc = sqrt(1/(sz(1)*sz(2)*sz(3))) ;
+    otherwise, error('%s method not recognised', opts.modelOpts.initMethod) ;
+  end
   weights = randn(sz, type)*sc ;
 
 % ----------------------------------------------
