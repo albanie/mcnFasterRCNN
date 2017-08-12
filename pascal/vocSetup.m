@@ -1,4 +1,8 @@
 function imdb = vocSetup(varargin)
+%VOSSETUP - setup up pascal VOC dataset
+%
+% sourced from https://github.com/vlfeat/matconvnet-fcn
+% (authors: Sebastian Erhardt and Andrea Vedaldi)
 
 opts.edition = '12' ;
 opts.dataDir = fullfile(vl_rootnn, 'data','datasets', 'voc07') ;
