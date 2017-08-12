@@ -1,5 +1,8 @@
 function [l, t, iw, ow, cw] = vl_nnanchortargets(x, gb, imInfo, varargin)
 %VL_NNANCHORTARGETS produces training targets for RPN
+%
+% Copyright (C) 2017 Samuel Albanie 
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.baseSize = 16 ;
   opts.featStride = 16 ;
