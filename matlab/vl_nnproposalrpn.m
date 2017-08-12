@@ -37,7 +37,6 @@ function y = vl_nnproposalrpn(x, b, imInfo, varargin)
   if ~isempty(opts.fixed), y = opts.fixed ; return ; end
   if ~isempty(dzdy), assert('this layer is a one way street') ; end
 
-
   anchors = generateAnchors(opts) ; % generate a fixed set of anchors
   numAnchors = size(anchors, 1) ;
   layerWidth = size(x, 2) ; layerHeight = size(x, 1) ;
