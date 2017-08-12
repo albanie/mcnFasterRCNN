@@ -1,10 +1,10 @@
 function imdb = getCocoImdb(opts)
 %GETCOCOIMDB coco imdb construction 
-%  GETCOCOIMDB(OPTS) builds an image database for training and 
+%  IMDB = GETCOCOIMDB(OPTS) builds an image database for training and 
 %  testing on the coco dataset
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   imdb = cocoSetup(opts) ;
   classIds = 1:numel(imdb.meta.classes) ;  

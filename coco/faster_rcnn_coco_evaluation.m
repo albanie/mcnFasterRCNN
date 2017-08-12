@@ -1,16 +1,44 @@
 function results = faster_rcnn_coco_evaluation(varargin)
-%FASTER_RCNN_COCO_EVALUATION  Evaluate a trained Faster-RCNN model on 
-% MS COCO
-
+%FASTER_RCNN_COCO_EVALUATION Evaluate a trained Faster-RCNN model on MS COCO
+%
+%   FASTER_RCNN_COCOL_EVALUATION(..'name', value) accepts the following 
+%   options:
+%
+%   `net` :: []
+%    The `autonn` network object to be evaluated.  If not supplied, a network
+%    will be loaded instead by name from the detector zoo.
+%
+%   `gpus` :: []
+%    If provided, the gpu ids to be used for processing.
+%
+%   `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
+%    The path to the directory containing the coco data
+%
+%   `modelName` :: 'faster-rcnn-vggvd-coco'
+%    The name of the detector to be evaluated (used to generate output
+%    file names, caches etc.)
+%
+%   `refreshCache` :: false
+%    If true, overwrite previous predictions by any detector sharing the 
+%    same model name, otherwise, load results directly from cache.
+%
+%   `useMiniVal` :: false
+%    If true (and the testset is set to `val`), evaluate on the `mini-val` 
+%    subsection of the coco data, rather than the full validation set.  This
+%    setting is useful for evaluating models trained on coco-trainval135k.
+%
+%   `year` :: 2014
+%    Select year of coco data to run evaluation on.
+%
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.net = [] ;
-  opts.modelName = 'faster-rcnn-vggvd-coco' ;
   opts.expDir = '' ; % preserve interface
   opts.gpus = 4 ;
   opts.debug = 0 ;
   opts.refreshCache = true ;
+  opts.modelName = 'faster-rcnn-vggvd-coco' ;
   opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts.year = 2015 ; % 2015 only contains test instances
   opts.useMiniVal = 0 ; opts.testset = 'test-dev' ;
@@ -100,7 +128,7 @@ function [opts, imdb] = configureImdbOpts(~, opts, imdb)
     case 2015
       % do nothing
       if 0  % benchmark
-        keep = 20 ; testIdx = find(imdb.images.set == 4) ;
+        keep = 1000 ; testIdx = find(imdb.images.set == 4) ; %#ok
         imdb.images.set(testIdx(keep+1:end)) = 5 ;
       end
   end

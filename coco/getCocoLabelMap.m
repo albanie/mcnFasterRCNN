@@ -13,7 +13,7 @@ function [labelMap,labels] = getCocoLabelMap(varargin)
 %   indicies
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.reverse = false ;
   opts.labelMapFile = fullfile(vl_rootnn, 'data/coco/label_map.txt') ;
@@ -21,8 +21,8 @@ function [labelMap,labels] = getCocoLabelMap(varargin)
 
   data = importdata(opts.labelMapFile) ; 
   tokens = cellfun(@(x) {strsplit(x, ',')}, data) ;
-  keys = cellfun(@(x) str2num(x{2}), tokens) ;
-  vals = cellfun(@(x) str2num(x{1}), tokens) ;
+  keys = cellfun(@(x) str2double(x{2}), tokens) ;
+  vals = cellfun(@(x) str2double(x{1}), tokens) ;
   labels = cellfun(@(x) {x{3}}, tokens) ;
   if opts.reverse, tmp = keys ; keys = vals ; vals = tmp ; end 
   labelMap = containers.Map(keys, vals) ;

@@ -5,7 +5,7 @@
 # function to hang.  This script aims to ensure filetype consistency
 #
 # Copyright (C) 2017 Samuel Albanie 
-# All rights reserved.
+# Licensed under The MIT License [see LICENSE.md for details]
 
 COCO_VAL_DIR="${HOME}/data/datasets/mscoco/images/val2014"
 NUM_IMS=`ls -l $COCO_VAL_DIR | wc | awk '{ print $1 }'`

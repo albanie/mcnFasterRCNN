@@ -2,7 +2,7 @@ function drawCocoBoxes(im, box, confidence, label, varargin)
 %DRAWCOCOBOXES - draw bounding boxes predicted by coco detector
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.format = 'MinMax' ;
   opts.gt = [] ;
