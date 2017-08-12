@@ -8,7 +8,7 @@ function fixer(varargin)
 %  is not idempotent
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.modelName = 'faster-rcnn-vggvd-pascal-local.mat' ;
   opts.numAnchors = 9 ; % 12 for coco

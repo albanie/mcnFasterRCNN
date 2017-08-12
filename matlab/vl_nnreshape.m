@@ -25,10 +25,8 @@ function y = vl_nnreshape(x, shape, varargin)
 %   as X and Y respectively.
 %
 % Copyright (C) 2017 Samuel Albanie and Andrea Vedaldi.
-% All rights reserved.
-%
-% This file is part of the VLFeat library and is made available under
-% the terms of the BSD license (see the COPYING file).
+% Licensed under The MIT License [see LICENSE.md for details]
+
 [~, dzdy] = vl_argparsepos(struct(), varargin) ;
 
 if isnumeric(shape) % apply caffe style conventions if needed

@@ -1,11 +1,11 @@
-function expName = getExpNameFRCNN(mopts, dopts, train) 
+function expName = getExpNameFRCNN(mopts, dopts) 
 %GETEXPNAMEFRCNN create an appropriate experiment name  
 %   GETEXPNAMEFRCNN(MOPTS, DOPTS) defines a naming strategy for each 
 %   experiment, based on the model options MOPTS and data options DOPTS
 %   provided
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   if dopts.useValForTraining, subset = 'vt' ; else, subset = 't' ; end
   args = {mopts.type, dopts.name, subset, mopts.batchSize, mopts.architecture} ;
@@ -16,8 +16,3 @@ function expName = getExpNameFRCNN(mopts, dopts, train)
   if dopts.zoomAugmentation
       expName = [ expName sprintf('-zoom-%d', dopts.zoomScale) ] ;
   end
-  % while debugging
-  lr = unique(train.learningRate) ;
-  lrStr = strjoin(arrayfun(@(x) {num2str(x)}, lr), '-') ;
-  expName = [ expName '-lr-' lrStr] ;
-  expName = [ expName '-' mopts.initMethod ] ;

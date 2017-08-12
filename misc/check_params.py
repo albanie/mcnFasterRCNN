@@ -18,14 +18,6 @@ add_path(zsvision_path)
 import ipdb
 import caffe
 from fast_rcnn.config import cfg
-# from utils.blob import im_list_to_blob
-# from fast_rcnn.nms_wrapper import nms
-# from utils.timer import Timer
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import scipy.io as sio
-# from fast_rcnn.bbox_transform import clip_boxes, bbox_transform_inv
-
 
 pt = 'VGG16/faster_rcnn_alt_opt/faster_rcnn_test.pt'
 model = 'faster_rcnn_models/VGG16_faster_rcnn_final.caffemodel'

@@ -18,6 +18,9 @@ function [y, dzdl] = vl_nnmultitaskloss(x, l, varargin)
 %
 %   `locWeight`:: 1
 %    A scalar which weights the loss contribution of the regression loss. 
+%
+% Copyright (C) 2017 Samuel Albanie 
+% Licensed under The MIT License [see LICENSE.md for details]
 
 opts.locWeight = 1 ;
 [opts, dzdy] = vl_argparsepos(opts, varargin, 'nonrecursive') ;

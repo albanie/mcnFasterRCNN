@@ -34,7 +34,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 %    same model name, otherwise, load results directly from cache.
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.net = [] ;
   opts.gpus = 4 ;

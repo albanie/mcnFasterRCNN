@@ -1,6 +1,9 @@
 function batchData = faster_rcnn_train_get_batch(imdb, batch, bopts, varargin)
 % SSD_TRAIN_GET_BATCH generates mini batches for training faster r-cnn, with 
 % the option to apply SSD-style data augmentation
+%
+% Copyright (C) 2017 Samuel Albanie 
+% Licensed under The MIT License [see LICENSE.md for details]
 
   imNames = imdb.images.name(batch) ; imPathTemplates = imdb.images.paths(batch) ;
   imPaths = cellfun(@(x,y) sprintf(x, y), imPathTemplates, imNames, 'Uni', 0) ;
@@ -110,14 +113,7 @@ function batchData = faster_rcnn_train_get_batch(imdb, batch, bopts, varargin)
   end
 
   if bopts.useGpu, data = gpuArray(data) ; end
-  %if bopts.debug, viz_get_batch(data, labels, targets) ; end
-
-  if bopts.debug
-    tmp = load('contrib/mcnFasterRCNN/feats/input_img.mat') ;
-    labels{1} = tmp.gt_boxes(5) ;
-    keyboard
-  end
-    %imPaths = {
+  if bopts.debug, viz_get_batch(data, labels, targets) ; end
 
   batchData = {'data', data, 'gtLabels', labels, ...
                'gtBoxes', targets, 'imInfo', imInfo} ;

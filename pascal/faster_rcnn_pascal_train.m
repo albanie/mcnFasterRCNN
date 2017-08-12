@@ -1,16 +1,71 @@
 function faster_rcnn_pascal_train(varargin)
+%FASTER_RCNN_PASCAL_TRAIN Train a Faster R-CNN detector on pascal 
+%   FASTER_RCNN_PASCAL_TRAIN performs a full training run of a Faster R-CNN
+%   detector on the Pascal VOC dataset. A number of options and settings are
+%   provided for training.  The defaults should reproduce the experiment 
+%   described in the original Faster R-CNN paper (linked in README.md).
+%
+%   FASTER_RCNN_PASCAL_TRAIN(..'name', value) accepts the following 
+%   options:
+%
+%   `gpus` :: []
+%    If provided, the gpu ids to be used for processing.
+%
+%   `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
+%    The path to the directory containing the coco data
+%
+%   `pruneCheckpoints` :: true
+%    Determines whether intermediate training files should be cleared to save
+%    space after the training run has completed.
+%
+%   `nms` :: 'cpu'
+%    NMS can be run on either the gpu if the dependency has been installed
+%    (see README.md for details), or on the cpu (slower).
+%
+%   `architecture` :: 'vgg16'
+%    The trunk architecture used to initialise the model.
+%
+%   `useValForTraining` :: true
+%    Whether the validation set (as defined in the original challenge) should
+%    be included in the training set.
+%
+%   `flipAugmentation` :: true
+%    Whether flipped images should be used in the training procedure.
+%
+%   `zoomAugmentation` :: false 
+%    [REQUIRES mcnSSD install] - use SSD-style "zoom" augmentation to improve
+%    performance
+%
+%   `patchAugmentation` :: false 
+%    [REQUIRES mcnSSD install] - use SSD-style "patch" augmentation to improve
+%    performance
+%
+%   `distortAugmentation` :: false 
+%    Use SSD-style "distortion" augmentation to improve performance
+%
+%   `use_vl_imreadjpeg` :: true 
+%    Use asynchronous image loader (slightly improves speed)
+%
+%   `confirmConfig` :: true 
+%    Ask the user to confirm the experimental settings before running the 
+%    experiment
+%
+% Copyright (C) 2017 Samuel Albanie 
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.gpus = 3 ;
-  opts.debug = 0 ; 
+  opts.debug = 1 ; 
+  opts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
   opts.continue = 1 ;
   opts.confirmConfig = 0 ;
   opts.architecture = 'vgg16' ;
   opts.pruneCheckpoints = true ;
   opts.flipAugmentation = true ;
-  opts.distortAugmentation = true ;
-  opts.zoomAugmentation = true ;
-  opts.patchAugmentation = true ;
+  opts.zoomAugmentation = false ;
+  opts.useValForTraining = true ; 
+  opts.patchAugmentation = false ;
   opts.use_vl_imreadjpeg = true ; 
+  opts.distortAugmentation = false ;
   opts = vl_argparse(opts, varargin) ;
 
   % configure training options
@@ -30,7 +85,7 @@ function faster_rcnn_pascal_train(varargin)
   dataOpts.zoomAugmentation = opts.zoomAugmentation ;
   dataOpts.patchAugmentation = opts.patchAugmentation ;
   dataOpts.distortAugmentation = opts.distortAugmentation ;
-  dataOpts.useValForTraining = true ;
+  dataOpts.useValForTraining = opts.useValForTraining ;
   dataOpts.zoomScale = 4 ;
   dataOpts.getImdb = @getPascalImdb ;
   dataOpts.prepareImdb = @prepareImdb ;
@@ -38,7 +93,7 @@ function faster_rcnn_pascal_train(varargin)
 
   % configure model options
   modelOpts.type = 'faster-rcnn' ;
-  modelOpts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
+  modelOpts.nms = opts.nms ; 
   modelOpts.locWeight = 1 ;
   modelOpts.numClasses = 21 ;
   modelOpts.featStride = 16 ;
@@ -61,16 +116,17 @@ function faster_rcnn_pascal_train(varargin)
   gentleLR = 0.0001 ; 
   vGentleLR = 0.00001 ;
 
-  % this should correspond (approximately) to the 70,000 iterations 
-  % used in the original model (when zoom aug is not used)
-  if dataOpts.zoomAugmentation 
-      numSteadyEpochs = 20 ;
-      numGentleEpochs = 8 ;
-      numVeryGentleEpochs = 8 ;
+  if ~dataOpts.zoomAugmentation 
+    % this should correspond (approximately) to the 70,000 iterations 
+    % used in the original model (when zoom aug is not used)
+    numSteadyEpochs = 10 ;
+    numGentleEpochs = 4 ;
+    numVeryGentleEpochs = 0 ;
   else
-      numSteadyEpochs = 10 ;
-      numGentleEpochs = 4 ;
-      numVeryGentleEpochs = 0 ;
+    % "SSD-style" data augmentation uses a longer training schedule
+    numSteadyEpochs = 20 ;
+    numGentleEpochs = 8 ;
+    numVeryGentleEpochs = 8 ;
   end
 
   steady = steadyLR * ones(1, numSteadyEpochs) ;
@@ -80,15 +136,16 @@ function faster_rcnn_pascal_train(varargin)
   train.numEpochs = numel(train.learningRate) ;
 
   % configure batch opts
-  batchOpts.clipTargets = false ;
   batchOpts.scale = 600 ;
   batchOpts.maxScale = 1000 ;
+  batchOpts.clipTargets = true ;
   batchOpts.patchOpts.use = dataOpts.patchAugmentation ;
   batchOpts.patchOpts.numTrials = 50 ;
   batchOpts.patchOpts.minPatchScale = 0.3 ;
   batchOpts.patchOpts.maxPatchScale = 1 ;
   batchOpts.patchOpts.minAspect = 0.5 ;
   batchOpts.patchOpts.maxAspect = 2 ;
+  batchOpts.patchOpts.clipTargets = batchOpts.clipTargets ;
 
   batchOpts.flipOpts.use = dataOpts.flipAugmentation ;
   batchOpts.flipOpts.prob = 0.5 ;
@@ -118,7 +175,7 @@ function faster_rcnn_pascal_train(varargin)
   batchOpts.resizers = {'bilinear', 'box', 'nearest', 'bicubic', 'lanczos2'} ;
 
   % configure paths
-  expName = getExpNameFRCNN(modelOpts, dataOpts, train) ;
+  expName = getExpNameFRCNN(modelOpts, dataOpts) ;
   if opts.debug, expName = [expName '-debug'] ; end
   expDir = fullfile(vl_rootnn, 'data', dataOpts.name, expName) ;
   imdbTail = fullfile(dataOpts.name, '/standard_imdb/imdb.mat') ;
@@ -150,11 +207,4 @@ function [opts, imdb] = prepareImdb(imdb, opts)
   opts.train.val = find(imdb.images.set == 2) ;
   if opts.dataOpts.useValForTraining
     opts.train.train = find(imdb.images.set == 2 | imdb.images.set == 1) ;
-  end
-
-  if 0 
-    opts.train.train = 1:20 ;
-    opts.train.val = 21:30 ;
-    opts.train.numEpochs = 1 ;
-    opts.train.continue = 0 ;
   end

@@ -1,5 +1,14 @@
 function [r, l, t, iw, ow, cw] = vl_nnproposaltargets(p, gb, gl, varargin)
 %VL_NNPROPOSALTARGETS produces training targets for proposals
+%   [R,L,T,IW,OW,CW] = VL_NNPROPOSALTARGETS(P, GB, GL) creates proposal
+%   targets based on a set of proposal candidates P, ground truth boxes
+%   B and ground truth class labels GL.  It returns a set of rois R, sampled
+%   class labels L, training targets T and a set of weights used in the loss
+%   computation.  IW and OW are used as the "inside weight" and "outside weight"
+%   in bounding box regression, while CW is used to weight the class losses. 
+%
+% Copyright (C) 2017 Samuel Albanie 
+% Licensed under The MIT License [see LICENSE.md for details]
 
   opts.bgClass = 1 ;
   opts.fgRatio = 0.25 ;
@@ -15,7 +24,6 @@ function [r, l, t, iw, ow, cw] = vl_nnproposaltargets(p, gb, gl, varargin)
   opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
-  %p = p - 1 ; % TODO(sam) cleanup indexing
   batchSize = numel(gb) ; assert(batchSize == 1, 'only batch size 1 support') ;
   gtBoxes = gb{1} ; gtLabels = gl{1} ;
 
@@ -33,7 +41,6 @@ function [labels, rois, targets, iw] = sampleRois(allRois, gtBoxes, ...
 % ---------------------------------------------------------------------
 % sample a set of RoIs that achieve the desired balance between foreground
 % and background
-
   fgRoisPerImage = round(opts.fgRatio * roisPerImage) ;
   overlaps = bbox_overlap(gather(allRois(:,2:end)), gtBoxes) ; % run on CPU
   [maxOverlaps, gtI] = max(overlaps, [], 2) ;
