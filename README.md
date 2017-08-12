@@ -19,8 +19,6 @@ This code is based on the `py-caffe` implementation
 The pre-trained models released with the caffe code which have been imported into matconvnet and 
 can be downloaded [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models), together with models trained directly with this code.  Alternatively, you can train your own detector.
 
-NOTE: The training code is still in the verfication process.
-
 ### Demo
 
 Running the `faster_rcnn_demo.m` script will download a model trained on pascal voc 2007 data and run it on a sample image to produce the figure below:
@@ -29,7 +27,7 @@ Running the `faster_rcnn_demo.m` script will download a model trained on pascal 
 
 ### Functionality
 
-There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models)).  Training code is also provided to reproudce the `pascal voc` experiments described in the paper.
+There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models)).  Training code is also provided to reproudce the `pascal voc` experiments described in the paper.  In addition, there is the option to train with "SSD-style" zoom augmentation to the improve performance of the model beyond the original baseline.
 
 ### Dependencies
 
@@ -37,13 +35,21 @@ To simply run a detector in test mode, there are no additional dependencies.  If
 
 * [autonn](https://github.com/vlfeat/autonn) - a wrapper module for matconvnet
 * [GPU NMS](https://github.com/albanie/mcnNMS) - a CUDA-based implementation of non-maximum supression
+* [mcnSSD](https://github.com/albanie/mcnSSD) - SSD detector implementation (provides data augmentation sampler)
 
 The effect of the CUDA NMS module is discussed below.
   
 
 ### Performance
 
-A comparison of the mean AP of the trained detectors is given [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models).  
+A comparison of the mean AP of the trained detectors is given [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models).   The following numbers were obtained from a single run of both implementations (there may be some variance if repeated):
+
+| training code | voc 07 test mAP |  
+|---------------|-----------------|
+| py-caffe      |     69.7 mAP    |  
+| matconvnet    |     69.3 mAP    |  
+
+For a fair comparison, the matconvnet model above is trained without "SSD-style" data augmentation (and uses only the flip augmentation used in the py-caffe implementation).  This can be switched on to improve beyond the orginal baseline.
 
 The Faster R-CNN pipeline makes heavy use of non-maximum suppression during training and inference. As a result, the runtime of the detector is significantly affected by the efficiency of the NMS function.  A GPU version of non-maximum suppression can be found [here](https://github.com/albanie/mcnNMS), which can be compiled and added to your MATLAB path.  Approximate benchmarks (they do not currently include the decoding of the raw predictions) of the code are given below on a Tesla M40 with a single item batch size:
 
