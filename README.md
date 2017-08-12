@@ -29,6 +29,7 @@ Running the `faster_rcnn_demo.m` script will download a model trained on pascal 
 
 There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models)).  Training code is also provided to reproudce the `pascal voc` experiments described in the paper.  In addition, there is the option to train with "SSD-style" zoom augmentation to the improve performance of the model beyond the original baseline.
 
+
 ### Dependencies
 
 To simply run a detector in test mode, there are no additional dependencies.  If you wish to train a new detector or improve detection efficiency, the following modules are required (these can be installed with `vl_contrib`):
@@ -49,7 +50,7 @@ A comparison of the mean AP of the trained detectors is given [here](http://www.
 | py-caffe      |     69.7 mAP    |  
 | matconvnet    |     69.3 mAP    |  
 
-For a fair comparison, the matconvnet model above is trained without "SSD-style" data augmentation (and uses only the flip augmentation used in the py-caffe implementation).  This can be switched on to improve beyond the orginal baseline.
+For a fair comparison, the matconvnet model above is trained without "SSD-style" data augmentation (discussed in more detail below) and uses only the flip augmentation used in the py-caffe implementation.  This can be switched on to improve beyond the orginal baseline.
 
 The Faster R-CNN pipeline makes heavy use of non-maximum suppression during training and inference. As a result, the runtime of the detector is significantly affected by the efficiency of the NMS function.  A GPU version of non-maximum suppression can be found [here](https://github.com/albanie/mcnNMS), which can be compiled and added to your MATLAB path.  Approximate benchmarks (they do not currently include the decoding of the raw predictions) of the code are given below on a Tesla M40 with a single item batch size:
 
@@ -68,3 +69,15 @@ The Faster R-CNN pipeline makes heavy use of non-maximum suppression during trai
 |-----------|-----------|-----------|
 | training  | 3.1 Hz    | 3.7 Hz    |
 | inference | 7.5 Hz    | 15 Hz     |
+
+
+### Data Augmentation
+
+The [SSD detector](https://link.springer.com/chapter/10.1007/978-3-319-46448-0_2) introduced, among other things, a form of aggressive data augmentation designed to improve the quality of the trained detector.  The "zoom augmentation" technique introduced in the paper is implemented in this code and can be applied directly to the Faster R-CNN detector.  The implmentation is fairly efficient, since all image resampling is performed on the GPU.  However it is not without cost, and reduces training speed by approximately 5%.  An example of the effect of zoom augmentation is shown below:
+
+![zoom-aug](misc/zoom-aug.png)
+
+The full details can be found in the SSD paper linked above.   Essentially the original image and corresponding bounding boxes are shrunk and randomly placed in a mean-pixel value canvas.  This is combined with patch augmentation and colour distortion to further help generalisation. 
+
+
+
