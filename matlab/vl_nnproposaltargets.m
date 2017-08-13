@@ -20,6 +20,7 @@ function [r, l, t, iw, ow, cw] = vl_nnproposaltargets(p, gb, gl, varargin)
   opts.insideWeight = 1 ;
   opts.roiBatchSize = 128 ;
   opts.normalizeTargets = 1 ;
+  opts.classAgnosticReg = 0 ; % regression style used by r-fcn
   opts.normalizeMeans = [0, 0, 0, 0] ;
   opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
@@ -99,14 +100,29 @@ function [targets,iw] = getBboxRegressionLabels(targetData, opts)
 % Returns an 1 1 x (4*numClasses) x N array of regression targets (where only
 % the ground truth class takes non-zero target values
 
+% TODO(samuel): update docs to explain class agnostic regression
+
   classes = targetData(:,1) ;
-  targets = zeros(1,1,4 * opts.numClasses, numel(classes), 'like', targetData) ;
-  iw = zeros(size(targets)) ;
-  inds = find(classes ~= opts.bgClass) ;
-  for ii = 1:numel(inds)
-    ind = inds(ii) ;
-    cls = classes(ind) ;
-    head = 4 * (cls-1) ; tail = head + 4 ;
-    targets(:,:,head+1:tail, ind) = targetData(ind, 2:end) ;
-    iw(:,:,head+1:tail, ind) = opts.insideWeight ;
+  if opts.classAgnosticReg
+    targets = zeros(1,1,4*2, numel(classes), 'like', targetData) ;
+    iw = zeros(size(targets)) ;
+    inds = find(classes ~= opts.bgClass) ;
+    for ii = 1:numel(inds)
+      ind = inds(ii) ;
+      cls = opts.bgClass + 1 ; % foreground class
+      head = 4 * (cls-1) ; tail = head + 4 ;
+      targets(:,:,head+1:tail, ind) = targetData(ind, 2:end) ;
+      iw(:,:,head+1:tail, ind) = opts.insideWeight ;
+    end
+  else % class specific bbox regression targets
+    targets = zeros(1,1,4 * opts.numClasses, numel(classes), 'like', targetData) ;
+    iw = zeros(size(targets)) ;
+    inds = find(classes ~= opts.bgClass) ;
+    for ii = 1:numel(inds)
+      ind = inds(ii) ;
+      cls = classes(ind) ;
+      head = 4 * (cls-1) ; tail = head + 4 ;
+      targets(:,:,head+1:tail, ind) = targetData(ind, 2:end) ;
+      iw(:,:,head+1:tail, ind) = opts.insideWeight ;
+    end
   end
