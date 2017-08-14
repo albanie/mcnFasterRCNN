@@ -18,20 +18,20 @@ function faster_rcnn_train(expDir, opts, varargin)
   confirmConfig(expDir, opts) ;
   net = opts.modelOpts.net_init(opts) ;
 
+  opts.batchOpts.averageImage = net.meta.normalization.averageImage ;
+
   [~,~] = cnn_train_autonn(net, imdb, ...
                     @(i,b) opts.modelOpts.get_batch(i, b, opts.batchOpts), ...
                     opts.train, 'expDir', expDir) ;
 
-  % evaluate network
   [net, modelName] = deployModel(expDir, opts) ;
   opts.eval_func('net', net, 'modelName', modelName, 'gpus', opts.train.gpus) ;
 
-% ---------------------------------------------------
+% --------------------------------------------------------------
 function [net, modelName] = deployModel(expDir, opts)
-% ---------------------------------------------------
+% --------------------------------------------------------------
   checkpointOpts = {'priorityMetric', 'multitask_loss', 'prune', false} ;
-  bestEpoch = 14 ; % tmp fix
-  %bestEpoch = findBestEpoch(expDir, checkpointOpts{:}) ;
+  bestEpoch = findBestEpoch(expDir, checkpointOpts{:}) ;
   bestNet = fullfile(expDir, sprintf('net-epoch-%d.mat', bestEpoch)) ;
   deployPath = sprintf(opts.modelOpts.deployPath, bestEpoch) ;
   opts.modelOpts.deploy_func(bestNet, deployPath) ;
