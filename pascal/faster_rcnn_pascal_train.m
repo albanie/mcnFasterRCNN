@@ -46,6 +46,9 @@ function faster_rcnn_pascal_train(varargin)
 %   `use_vl_imreadjpeg` :: true 
 %    Use asynchronous image loader (slightly improves speed)
 %
+%   `zoomScale` :: 2 
+%    Zoom magnitude used by SSD-style data augmentation
+%
 %   `confirmConfig` :: true 
 %    Ask the user to confirm the experimental settings before running the 
 %    experiment
@@ -66,6 +69,7 @@ function faster_rcnn_pascal_train(varargin)
   opts.patchAugmentation = false ;
   opts.use_vl_imreadjpeg = true ; 
   opts.distortAugmentation = false ;
+  opts.zoomScale = 2 ;
   opts = vl_argparse(opts, varargin) ;
 
   % configure training options
@@ -86,7 +90,7 @@ function faster_rcnn_pascal_train(varargin)
   dataOpts.patchAugmentation = opts.patchAugmentation ;
   dataOpts.distortAugmentation = opts.distortAugmentation ;
   dataOpts.useValForTraining = opts.useValForTraining ;
-  dataOpts.zoomScale = 4 ;
+  dataOpts.zoomScale = opts.zoomScale ;
   dataOpts.getImdb = @getPascalImdb ;
   dataOpts.prepareImdb = @prepareImdb ;
   dataOpts.dataRoot = fullfile(vl_rootnn, 'data', 'datasets') ;
@@ -125,8 +129,8 @@ function faster_rcnn_pascal_train(varargin)
   else
     % "SSD-style" data augmentation uses a longer training schedule
     numSteadyEpochs = 20 ;
-    numGentleEpochs = 8 ;
-    numVeryGentleEpochs = 8 ;
+    numGentleEpochs = 10 ;
+    numVeryGentleEpochs = 10 ;
   end
 
   steady = steadyLR * ones(1, numSteadyEpochs) ;
