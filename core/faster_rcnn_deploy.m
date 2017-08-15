@@ -1,21 +1,46 @@
 function net = faster_rcnn_deploy(srcPath, destPath, varargin)
 % FASTER_RCNN_DEPLOY deploys a FASTER_RCNN model for evaluation
 %   NET = FASTER_RCNN_DEPLOY(SRCPATH, DESTPATH) configures
-%   a Faster-RCNN model to perform evaluation.  THis process involves
+%   a Faster-RCNN model to perform evaluation.  This process involves
 %   removing the loss layers used during training and adding 
 %   a combination of a transpose softmax with a detection
-%   layer to compute network predictions
+%   layer to compute network predictions.
+%
+%   FASTER_RCNN_DEPLOY(..'name', value) accepts the following 
+%   options:
+%
+%   `toDagNN` :: true
+%    If true, the network is stored as a DagNN object, rather 
+%    than as an AutoNN object.
+%
+%   `precomputedBboxNormalization` :: true
+%    To ease the optimization, during learning bounding boxes are normalized
+%    according to a precomputed set of fixed means and standard deviations.
+%    If this option is true (indicating the normalization was used during 
+%    training), during deployment this process is undone and the regressors 
+%    are recalibrated to operate on proposals.
+%
+%   `normalizeMeans` :: [0, 0, 0, 0]
+%    The means used to normalize the bounding boxes.
+%
+%   `normalizeStdDevs` :: [0.1, 0.1, 0.2, 0.2]
+%    The standard deviations used to normalize the bounding boxes.
+%
+%   `numClasses` :: 21
+%    The number of classes that the network was trained to predict (used
+%    as part of the bbox regressor normalisation.
+%
+%   `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
+%    The path to the directory containing the coco data
 %
 % Copyright (C) 2017 Samuel Albanie
-% All rights reserved.
-%
-% This file is part of the VLFeat library and is made available under
-% the terms of the BSD license (see the COPYING file).
+% Licensed under The MIT License [see LICENSE.md for details]
 
+  opts.toDagNN = true ;
   opts.numClasses = 21 ;
   opts.normalizeMeans = [0, 0, 0, 0] ;
   opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
-  opts.precomputedBboxNormalization = 1 ;
+  opts.precomputedBboxNormalization = true ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
   tmp = load(srcPath) ; 
@@ -67,5 +92,10 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
     net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
   end
 
-  net = net.saveobj() ; 
+  if opts.toDagNN
+    customDagObj = faster_rcnn_dagnn_custom() ;
+    net = toDagNN(net, customDagObj) ;
+  else
+    net = net.saveobj() ; 
+  end
   save(destPath, '-struct', 'net') ;

@@ -24,8 +24,11 @@ function faster_rcnn_train(expDir, opts, varargin)
                     @(i,b) opts.modelOpts.get_batch(i, b, opts.batchOpts), ...
                     opts.train, 'expDir', expDir) ;
 
-  [net, modelName] = deployModel(expDir, opts) ;
-  opts.eval_func('net', net, 'modelName', modelName, 'gpus', opts.train.gpus) ;
+  for ii = 30:2:40
+    [net, modelName] = deployModel(expDir, opts) ;
+    modelName = [modelName sprintf('-%d', ii)] ;
+    opts.eval_func('net', net, 'modelName', modelName, 'gpus', opts.train.gpus) ;
+  end
 
 % --------------------------------------------------------------
 function [net, modelName] = deployModel(expDir, opts)

@@ -4,52 +4,6 @@ function net = faster_rcnn_init(opts, varargin)
 %   according to the options provided using the autonn matconvnet
 %   wrapper.
 
-  modelName = opts.modelOpts.architecture ;
-  modelDir = fullfile(vl_rootnn, 'data/models-import') ;
-
-  switch modelName
-    case 'vgg16'
-      trunkPath = fullfile(modelDir, 'imagenet-vgg-verydeep-16.mat') ;
-      rootUrl = 'http://www.vlfeat.org/matconvnet/models' ;
-      trunkUrl = [rootUrl '/imagenet-vgg-verydeep-16.mat' ] ;
-    case 'vgg16-reduced'
-      trunkPath = fullfile(modelDir, 'vgg-vd-16-reduced.mat') ;
-      rootUrl = 'http://www.robots.ox.ac.uk/~albanie/models' ;
-      trunkUrl = [rootUrl '/ssd/vgg-vd-16-reduced.mat'] ;
-    case 'resnet50', error('%s not yet supported', modelName) ;
-    case 'resnext101_64x4d', error('%s not yet supported', modelName) ;
-    otherwise, error('architecture %d is not recognised', modelName) ;
-  end
-
-  if ~exist(trunkPath, 'file')
-    fprintf('%s not found, downloading... \n', opts.modelOpts.architecture) ;
-    mkdir(fileparts(trunkPath)) ; urlwrite(trunkUrl, trunkPath) ;
-  end
-
-  net = vl_simplenn_tidy(load(trunkPath)) ; net = dagnn.DagNN.fromSimpleNN(net) ;
-
-  % freeze early layers and modify trunk biases to match caffe
-  freeze = {'conv1_1', 'conv1_2', 'conv2_1', 'conv2_2'} ;
-  for ii = 1:length(freeze)
-    pIdx = net.getParamIndex(net.layers(net.getLayerIndex(freeze{ii})).params) ;
-    [net.params(pIdx).learningRate] = deal(0) ;
-    [net.params(pIdx).weightDecay] = deal(0) ;
-  end
-  params = {'conv3_1b', 'conv3_2b', 'conv3_3b', 'conv4_1b', 'conv4_2b', ...
-          'conv4_3b', 'conv5_1b', 'conv5_2b', 'conv5_3b' 'fc6b', 'fc7b' } ;
-  for ii = 1:length(params), net = matchCaffeBiases(net, params{ii}) ; end
-
-
-  if strcmp(opts.modelOpts.architecture, 'vgg16-reduced') % match caffe
-    net.layers(net.getLayerIndex('fc6')).block.dilate = [6 6] ;
-    net.layers(net.getLayerIndex('fc6')).block.pad = [6 6] ;
-    net.layers(net.getLayerIndex('pool5')).block.stride = [1 1] ;
-    net.layers(net.getLayerIndex('pool5')).block.poolSize = [3 3] ;
-    net.layers(net.getLayerIndex('pool5')).block.pad = [1 1 1 1] ;
-  end
-  net.removeLayer('fc8') ; net.removeLayer('prob') ; net.renameVar('x0', 'data') ;
-
-
   rng(0) ; % for reproducibility, fix the seed
 
   % configure autonn inputs
@@ -57,21 +11,55 @@ function net = faster_rcnn_init(opts, varargin)
   gtLabels = Input('gtLabels') ; 
   imInfo = Input('imInfo') ;
 
+  % select RPN/fast-rcnn locations
+  switch opts.modelOpts.architecture
+    case 'vgg16'
+      rpn_base = 'relu5_3' ;
+      rpn_channels_in = 512 ;
+      rpn_channels_out = 512 ;
+      fast_rcnn_channels_in = 4096 ;
+      fast_rcnn_heads = {'fc6'} ;
+      insert_dropout = true ;
+      divisions = [7, 7] ;
+      freeze_decay = 1 ;
+      fast_rcnn_tail = 'drop7' ;
+    case 'resnet50'
+      rpn_base = 'res4f_relu' ;
+      fast_rcnn_heads = {'res5a_branch1', 'res5a_branch2a'} ;
+      rpn_channels_in = 1024 ;
+      rpn_channels_out = 256 ;
+      fast_rcnn_channels_in = 2048 ;
+      divisions = [14, 14] ;
+      insert_dropout = false ;
+      freeze_decay = 0 ;
+      fast_rcnn_tail = 'pool5' ;
+  end
+
+  % freeze early layers and modify trunk biases to match caffe
+  dag = loadTrunkModel(opts) ;
+  dag = freezeAndMatchLayers(dag, freeze_decay, opts) ;
+  dag = pruneUnusedLayers(dag, opts) ;
+
+  % flatten bnorm if required
+  if opts.modelOpts.mergeBnorm, dag = merge_down_batchnorm(dag) ; end
+
   % convert to autonn
-  stored = Layer.fromDagNN(net) ; net = stored{1} ;
+  stored = Layer.fromDagNN(dag) ; net = stored{1} ;
 
   % Region proposal network 
-  src = net.find('relu5_3', 1) ; 
-  largs = {'stride', [1 1], 'pad', [1 1 1 1]} ; sz = [3 3 512 512] ; addRelu = 1 ; 
+  src = net.find(rpn_base, 1) ; 
+  largs = {'stride', [1 1], 'pad', [1 1 1 1], 'dilate', [1 1]} ; 
+  sz = [3 3 rpn_channels_in rpn_channels_out] ; addRelu = 1 ; 
   rpn_conv = add_block(src, 'rpn_conv_3x3', opts, sz, addRelu, largs{:}) ;
   numAnchors = numel(opts.modelOpts.scales) * numel(opts.modelOpts.ratios) ;
 
-  name = 'rpn_cls_score' ; largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;  
-  c = 2 ; sz = [1 1 512 numAnchors*c ] ; addRelu = 0 ;
+  name = 'rpn_cls_score' ; c = 2 ; sz = [1 1 rpn_channels_out numAnchors*c ] ; 
+  addRelu = 0 ; largs = {'stride', [1 1], 'pad', [0 0 0 0], 'dilate', [1 1]} ;  
   rpn_cls = add_block(rpn_conv, name, opts, sz, addRelu, largs{:}) ;
 
-  name = 'rpn_bbox_pred' ; largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;
-  b = 4 ; sz = [1 1 512 numAnchors*b ] ; addRelu = 0 ;
+  name = 'rpn_bbox_pred' ; b = 4 ; sz = [1 1 rpn_channels_out numAnchors*b ] ;
+  addRelu = 0 ;
+  largs = {'stride', [1 1], 'pad', [0 0 0 0], 'dilate', [1 1]} ;
   rpn_bbox_pred = add_block(rpn_conv, name, opts, sz, addRelu, largs{:}) ;
 
   largs = {'name', 'rpn_cls_score_reshape'} ;
@@ -118,26 +106,32 @@ function net = faster_rcnn_init(opts, varargin)
 
   % reattach fully connected layers following roipool
   largs = {'name', 'roi_pool5', 'numInputDer', 1} ;
-  args = {src, rois, 'method', 'Max', 'Subdivisions', [7,7], 'Transform', 1/16} ;
-  roi_pool = Layer.create(@vl_nnroipool, args, largs{:}) ;
-  tail = net.find('fc6',1) ; tail.inputs{1} = roi_pool ;
+  args = {src, rois, 'method', 'Max', 'Subdivisions', divisions, 'Transform', 1/16} ;
+  roi_pool = Layer.create(@vl_nnroipool2, args, largs{:}) ;
+  for ii = 1:numel(fast_rcnn_heads)
+    body = net.find(fast_rcnn_heads{ii}, 1) ; body.inputs{1} = roi_pool ;
+  end
 
-  % insert dropout layers
-  relu6 = net.find('relu6', 1) ;
-  drop6 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop6' ;
-  tail = net.find('fc7',1) ; tail.inputs{1} = drop6 ;
-
-  relu7 = net.find('relu7', 1) ;
-  drop7 = vl_nndropout(relu7, 'rate', 0.5) ; drop7.name = 'drop7' ;
+  if insert_dropout % only used by VGG 16
+    msg = 'only vgg16-based architecture uses dropout' ;
+    assert(strcmp(opts.modelOpts.architecture, 'vgg16'), msg) ;
+    relu6 = net.find('relu6', 1) ;
+    drop6 = vl_nndropout(relu6, 'rate', 0.5) ; drop6.name = 'drop6' ;
+    tail = net.find('fc7',1) ; tail.inputs{1} = drop6 ;
+    relu7 = net.find('relu7', 1) ;
+    tail = vl_nndropout(relu7, 'rate', 0.5) ; tail.name = 'drop7' ;
+  else
+    tail = net.find(fast_rcnn_tail, 1) ;
+  end
 
   % final predictions
-  largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;
-  sz = [1 1 4096 opts.modelOpts.numClasses] ; 
-  cls_score = add_block(drop7, 'cls_score', opts, sz, 0, largs{:}) ;
+  largs = {'stride', [1 1], 'pad', [0 0 0 0], 'dilate', [1 1]} ;
+  sz = [1 1 fast_rcnn_channels_in opts.modelOpts.numClasses] ; 
+  cls_score = add_block(tail, 'cls_score', opts, sz, 0, largs{:}) ;
 
-  largs = {'stride', [1 1], 'pad', [0 0 0 0]} ;
-  sz = [1 1 4096 opts.modelOpts.numClasses*4] ; 
-  bbox_pred = add_block(drop7, 'bbox_pred', opts, sz, 0, largs{:}) ;
+  largs = {'stride', [1 1], 'pad', [0 0 0 0], 'dilate', [1 1]} ;
+  sz = [1 1 fast_rcnn_channels_in opts.modelOpts.numClasses*4] ; 
+  bbox_pred = add_block(tail, 'bbox_pred', opts, sz, 0, largs{:}) ;
 
   % r-cnn losses
   largs = {'name', 'loss_cls', 'numInputDer', 1} ;
@@ -160,13 +154,14 @@ function net = faster_rcnn_init(opts, varargin)
   rgb = [122.771, 115.9465, 102.9801] ;
   net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
 
-
 % ---------------------------------------------------------------------
 function net = add_block(net, name, opts, sz, nonLinearity, varargin)
 % ---------------------------------------------------------------------
 
-  filters = Param('value', init_weight(sz, 'single', opts), 'learningRate', 1) ;
-  biases = Param('value', zeros(sz(4), 1, 'single'), 'learningRate', 2) ;
+  fOpts = {'learningRate', 1, 'weightDecay', 1} ;
+  filters = Param('value', init_weight(sz, 'single', opts), fOpts{:}) ;
+  bOpts = {'learningRate', 2, 'weightDecay', 0} ;
+  biases = Param('value', zeros(sz(4), 1, 'single'), bOpts{:}) ;
   cudaOpts = {'CudnnWorkspaceLimit', opts.modelOpts.CudnnWorkspaceLimit} ;
   net = vl_nnconv(net, filters, biases, varargin{:}, cudaOpts{:}) ;
   net.name = name ;
@@ -186,52 +181,101 @@ function net = add_block(net, name, opts, sz, nonLinearity, varargin)
     net.name = sprintf('%s_relu', name) ;
   end
 
-% ------------------------------------------------
-function checkLearningParams(rpn_loss, loss, opts)
-% ------------------------------------------------
-% compare parameters against caffe.  
-% TODO: this check can now be safely disabled
+% ---------------------------------------------------------
+function net = freezeAndMatchLayers(net, freezeDecay, opts)
+% ---------------------------------------------------------
 
-  % create name map
-  nameMap = containers.Map ; 
-  nameMap('rpn_conv/3x3') = 'rpn_conv_3x3' ;
-  proto = fileread(opts.modelOpts.protoPath) ;
+  modelName = opts.modelOpts.architecture ;
+  switch modelName
+    case 'vgg16'
+      % freeze early layers and modify trunk biases to match caffe
+      biases = {'conv3_1b', 'conv3_2b', 'conv3_3b', 'conv4_1b', 'conv4_2b', ...
+              'conv4_3b', 'conv5_1b', 'conv5_2b', 'conv5_3b' 'fc6b', 'fc7b' } ;
+      freeze = {'conv1_1', 'conv1_2', 'conv2_1', 'conv2_2'} ;
+    case 'resnet50'
+      % Unit 5 of the resnet is modified slightly for detection
+      %net.layers(net.getLayerIndex('res5a_branch1')).block.stride = [1 1] ;
+      %net.layers(net.getLayerIndex('res5a_branch2a')).block.stride = [1 1] ;
+      %dilateLayers = {'res5a_branch2b', 'res5b_branch2b', 'res5c_branch2b' } ;
+      %for ii = 1:numel(dilateLayers)
+        %lIdx = net.getLayerIndex(dilateLayers{ii}) ;
+        %net.layers(lIdx).block.dilate = [2 2] ;
+        %net.layers(lIdx).block.pad = [2 2 2 2] ;
+      %end
+      biases = {'conv1_bias'} ;
 
-  % mini parser
-  name = 'blank' ; stack = {} ; tokens = strsplit(proto, '\n') ; prev = '' ;
-  assert(contains(tokens{1}, 'VGG_ILSVRC_16'), 'wrong proto') ; tokens(1) = [] ; 
-  isBias = 0 ;
-  while ~isempty(tokens)
-    head = tokens{1} ; tokens(1) = [] ;
-    if contains(head, '}') && contains(head, '{') 
-      s = strfind(head, '{') ; e = strfind(head, '}') ; head = head(s+1:e-1) ;
-    elseif contains(head, '}'), stack(end) = [] ; 
-    elseif contains(head, '{'), stack{end+1} = head ; 
-    elseif contains(head, 'name') 
-      pair = strsplit(head, ':') ; 
-      name = strrep(strrep(pair{2}, '"', ''), ' ', '') ;
-      if isKey(nameMap, name), name = nameMap(name) ; end
+      % modify padding on pooling layers
+      net.layers(net.getLayerIndex('pool1')).block.pad = [0 0 0 0] ;
+
+      base = {'a', 'a', 'a', 'b', 'b', 'b', 'c', 'c', 'c'} ;
+      leaves = {'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'} ;
+      template = 'res2%s_branch2%s' ;
+      resUnits = cellfun(@(x,y) {sprintf(template, x,y)}, base,leaves) ;
+      freeze = [{'conv1', 'res2a_branch1'}, resUnits] ;
+    case 'resnext101_64x4d', error('%s not yet supported', modelName) ;
+    otherwise, error('architecture %d is not recognised', modelName) ;
+  end
+  for ii = 1:length(biases), net = matchCaffeBiases(net, biases{ii}) ; end
+
+  for ii = 1:length(freeze)
+    pIdx = net.getParamIndex(net.layers(net.getLayerIndex(freeze{ii})).params) ;
+    [net.params(pIdx).learningRate] = deal(0) ;
+    % In the original code weight decay is kept on in the conv layers
+    if freezeDecay
+      [net.params(pIdx).weightDecay] = deal(0) ;
     end
+  end
 
-    if ~isempty(stack) && contains(head, {'lr_mult', 'decay'})
-      pair = strsplit(head, ':') ; x = str2double(pair{2}) ;
-      if contains(head, 'decay') 
-        target = 'weightDecay' ; 
-      else
-        target = 'learningRate' ; 
-      end
-      if ~strcmp(prev, name)
-        fprintf('filter %s (%s): %f \n', target, name, x) ;
-      else
-        fprintf('bias %s (%s): %f \n', target, name, x) ;
-      end
-      src = rpn_loss.find(name) ; 
-      if isempty(src), src = loss.find(name) ; end
-      layer = src{1} ; pos = find(cellfun(@(x) isa(x, 'Param'), layer.inputs)) ;
-      param = layer.inputs{pos + isBias} ; val = param.(target) ;
-      assert(val == x, sprintf('%s did not match for layer %s', target, name)) ;
-      isBias = ~isBias ; prev = name ;
-    end
+  % regardless of model, freeze all batch norms during learning
+  bnLayerIdx = find(arrayfun(@(x) isa(x.block, 'dagnn.BatchNorm'), net.layers)) ;
+  for ii = 1:length(bnLayerIdx)
+    lIdx = bnLayerIdx(ii) ;
+    pIdx = net.getParamIndex(net.layers(lIdx).params) ;
+    [net.params(pIdx).learningRate] = deal(0) ;
+    [net.params(pIdx).weightDecay] = deal(0) ;
+  end
+
+% ------------------------------------------
+function net = pruneUnusedLayers(net, opts)
+% -----------------------------------------
+  switch opts.modelOpts.architecture
+    case 'vgg16'
+      net.removeLayer('fc8') ; 
+      net.renameVar('x0', 'data') ; % fix old naming scheme
+    case 'resnet50'
+      net.removeLayer('fc1000') ; 
+    otherwise, error('%s method not recognised', opts.modelOpts.architecture) ;
+  end
+  net.removeLayer('prob') ;  
+
+% ---------------------------------
+function dag = loadTrunkModel(opts)
+% ---------------------------------
+  modelDir = fullfile(vl_rootnn, 'data/models-import') ;
+  modelName = opts.modelOpts.architecture ;
+  switch modelName
+    case 'vgg16'
+      trunkPath = fullfile(modelDir, 'imagenet-vgg-verydeep-16.mat') ;
+      rootUrl = 'http://www.vlfeat.org/matconvnet/models' ;
+      trunkUrl = [rootUrl '/imagenet-vgg-verydeep-16.mat'] ;
+    case 'resnet50'
+      trunkPath = fullfile(modelDir, 'imagenet-resnet-50-dag.mat') ;
+      rootUrl = 'http://www.vlfeat.org/matconvnet/models' ;
+      trunkUrl = [rootUrl 'imagenet-resnet-50-dag.mat'] ;
+    case 'resnext101_64x4d', error('%s not yet supported', modelName) ;
+    otherwise, error('architecture %d is not recognised', modelName) ;
+  end
+
+  if ~exist(trunkPath, 'file')
+    fprintf('%s not found, downloading... \n', opts.modelOpts.architecture) ;
+    mkdir(fileparts(trunkPath)) ; urlwrite(trunkUrl, trunkPath) ;
+  end
+
+  storedNet = load(trunkPath) ;
+  if ~isfield(storedNet, 'vars') % check for dagnn
+    net = vl_simplenn_tidy(storedNet) ; dag = dagnn.DagNN.fromSimpleNN(net) ;
+  else
+    dag = dagnn.DagNN.loadobj(storedNet) ;
   end
 
 % --------------------------------------------
