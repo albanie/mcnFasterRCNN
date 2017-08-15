@@ -41,7 +41,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   opts.nms = 'cpu' ;  
   opts.refreshCache = false ;
   opts.evalVersion = 'fast' ;
-  opts.modelName = 'faster-rcnn-vggvd-pascal' ;
+  opts.modelName = 'faster-rcnn-mcn-vggvd-pascal' ;
   opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts = vl_argparse(opts, varargin) ;
 

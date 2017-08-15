@@ -3,6 +3,8 @@ classdef ProposalRPN < dagnn.ElementWise
     featStride = 16
     scales = [8 16 32]
     fixed = [] 
+    postNMSTopN = 300 
+    preNMSTopN = 6000 
   end
   
   methods

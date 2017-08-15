@@ -57,7 +57,7 @@ function faster_rcnn_pascal_train(varargin)
 % Licensed under The MIT License [see LICENSE.md for details]
 
   opts.gpus = 3 ;
-  opts.debug = 1 ; 
+  opts.debug = 0 ; 
   opts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
   opts.continue = 1 ;
   opts.confirmConfig = 0 ;
@@ -113,7 +113,11 @@ function faster_rcnn_pascal_train(varargin)
   modelOpts.batchRenormalization = false ;
   modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
   modelOpts.initMethod = 'gaussian' ;
-  modelOpts.protoPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/train.pt') ;
+  modelOpts.freezeBnorm = 0 ;
+  modelOpts.mergeBnorm = 0 ;
+  protoName = sprintf('%s_train.prototxt', opts.architecture) ;
+  protoDir = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc') ;
+  modelOpts.protoPath = fullfile(protoDir, protoName) ;
 
   % Set learning rates
   steadyLR = 0.001 ;
@@ -129,8 +133,8 @@ function faster_rcnn_pascal_train(varargin)
   else
     % "SSD-style" data augmentation uses a longer training schedule
     numSteadyEpochs = 20 ;
-    numGentleEpochs = 10 ;
-    numVeryGentleEpochs = 10 ;
+    numGentleEpochs = 5 ;
+    numVeryGentleEpochs = 5 ;
   end
 
   steady = steadyLR * ones(1, numSteadyEpochs) ;

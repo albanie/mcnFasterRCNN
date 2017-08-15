@@ -24,7 +24,8 @@ function faster_rcnn_train(expDir, opts, varargin)
                     @(i,b) opts.modelOpts.get_batch(i, b, opts.batchOpts), ...
                     opts.train, 'expDir', expDir) ;
 
-  for ii = 30:2:40
+  % check scores across validation set (handles mAP scoring issue)
+  for ii = 20:2:30
     [net, modelName] = deployModel(expDir, opts) ;
     modelName = [modelName sprintf('-%d', ii)] ;
     opts.eval_func('net', net, 'modelName', modelName, 'gpus', opts.train.gpus) ;
