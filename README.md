@@ -41,7 +41,7 @@ To simply run a detector in test mode, there are no additional dependencies.  If
 The effect of the CUDA NMS module is discussed below.
   
 
-### Performance
+### Accuracy
 
 A comparison of the mean AP of the trained detectors is given [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models).   The following numbers were obtained from a single run of both implementations (there may be some variance if repeated):
 
@@ -51,7 +51,10 @@ A comparison of the mean AP of the trained detectors is given [here](http://www.
 | matconvnet    |     69.3 mAP    |  
 | matconvnet+   |     70.2 mAP    |  
 
-Two matconvnet models are presented above. The first, labeled `matconvnet` is trained without "SSD-style" data augmentation (discussed in more detail below) and uses only the flip augmentation used in the py-caffe implementation.  The second, `matconvnet+`, uses the augmentation pipeline.  This can be switched on to improve beyond the original baseline, but requires a longer training schedule.
+Two matconvnet models are presented above. The first, labeled `matconvnet`, is trained without "SSD-style" data augmentation (discussed in more detail below) and uses only the flip augmentation used in the py-caffe implementation.  The second, `matconvnet+`, uses the augmentation pipeline.  This can be switched on to improve beyond the original baseline, but requires a longer training schedule.
+
+
+### Efficiency
 
 The Faster R-CNN pipeline makes heavy use of non-maximum suppression during training and inference. As a result, the runtime of the detector is significantly affected by the efficiency of the NMS function.  A GPU version of non-maximum suppression can be found [here](https://github.com/albanie/mcnNMS), which can be compiled and added to your MATLAB path.  Approximate benchmarks (they do not currently include the decoding of the raw predictions) of the code are given below on a Tesla M40 with a single item batch size:
 
