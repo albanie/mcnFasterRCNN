@@ -147,8 +147,13 @@ function net = faster_rcnn_init(opts, varargin)
   largs = {'name', 'multitask_loss'} ;
   multitask_loss = Layer.create(@vl_nnmultitaskloss, args, largs{:}) ;
 
+  % add a generic accuracy tracker to r-cnn for extra clarity
+  largs = {'name', 'cls_error', 'numInputDer', 1} ;
+  args = {cls_score, labels, 'loss', 'classerror', 'instanceWeights', cw} ;
+  cls_error = Layer.create(@vl_nnloss, args, largs{:}) ;
+
   checkLearningParams(rpn_multitask_loss, multitask_loss, opts) ;
-  net = Net(rpn_multitask_loss, multitask_loss) ;
+  net = Net(rpn_multitask_loss, multitask_loss, cls_error) ;
 
   % set meta information to match original training code
   rgb = [122.771, 115.9465, 102.9801] ;

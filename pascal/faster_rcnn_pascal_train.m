@@ -69,6 +69,7 @@ function faster_rcnn_pascal_train(varargin)
   opts.patchAugmentation = false ;
   opts.use_vl_imreadjpeg = true ; 
   opts.distortAugmentation = false ;
+  opts.trainData = '07' ;
   opts.zoomScale = 2 ;
   opts = vl_argparse(opts, varargin) ;
 
@@ -80,11 +81,11 @@ function faster_rcnn_pascal_train(varargin)
   train.continue = opts.continue ;
   train.parameterServer.method = 'mmap' ;
   train.stats = {'rpn_loss_cls', 'rpn_loss_bbox','loss_cls', 'loss_bbox', ...
-                        'multitask_loss'} ; % train end to end
+                  'multitask_loss', 'cls_error'} ; % train end to end
 
   % configure dataset options
   dataOpts.name = 'pascal' ;
-  dataOpts.trainData = '07' ; dataOpts.testData = '07' ;
+  dataOpts.trainData = opts.trainData ; dataOpts.testData = '07' ;
   dataOpts.flipAugmentation = opts.flipAugmentation ;
   dataOpts.zoomAugmentation = opts.zoomAugmentation ;
   dataOpts.patchAugmentation = opts.patchAugmentation ;
@@ -114,7 +115,7 @@ function faster_rcnn_pascal_train(varargin)
   modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
   modelOpts.initMethod = 'gaussian' ;
   modelOpts.freezeBnorm = 0 ;
-  modelOpts.mergeBnorm = 0 ;
+  modelOpts.mergeBnorm = 1 ;
   protoName = sprintf('%s_train.prototxt', opts.architecture) ;
   protoDir = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc') ;
   modelOpts.protoPath = fullfile(protoDir, protoName) ;

@@ -8,8 +8,9 @@ function expName = getExpNameFRCNN(mopts, dopts)
 % Licensed under The MIT License [see LICENSE.md for details]
 
   if dopts.useValForTraining, subset = 'vt' ; else, subset = 't' ; end
-  args = {mopts.type, dopts.name, subset, mopts.batchSize, mopts.architecture} ;
-  expName = sprintf('%s-%s-%s-%d-%s', args{:}) ; 
+  args = {mopts.type, dopts.name, subset, dopts.trainData, mopts.batchSize, ...
+         mopts.architecture} ;
+  expName = sprintf('%s-%s-%s-%s-%d-%s', args{:}) ; 
   if dopts.flipAugmentation, expName = [ expName '-flip' ] ; end
   if dopts.patchAugmentation, expName = [ expName '-patch' ] ; end
   if dopts.distortAugmentation, expName = [ expName '-distort' ] ; end
