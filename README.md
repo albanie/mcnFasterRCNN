@@ -49,8 +49,9 @@ A comparison of the mean AP of the trained detectors is given [here](http://www.
 |---------------|-----------------|
 | py-caffe      |     69.7 mAP    |  
 | matconvnet    |     69.3 mAP    |  
+| matconvnet+   |     70.2 mAP    |  
 
-For a fair comparison, the matconvnet model above is trained without "SSD-style" data augmentation (discussed in more detail below) and uses only the flip augmentation used in the py-caffe implementation.  This can be switched on to improve beyond the orginal baseline.
+Two matconvnet models are presented above. The first, labeled `matconvnet` is trained without "SSD-style" data augmentation (discussed in more detail below) and uses only the flip augmentation used in the py-caffe implementation.  The second, `matconvnet+`, uses the augmentation pipeline.  This can be switched on to improve beyond the original baseline, but requires a longer training schedule.
 
 The Faster R-CNN pipeline makes heavy use of non-maximum suppression during training and inference. As a result, the runtime of the detector is significantly affected by the efficiency of the NMS function.  A GPU version of non-maximum suppression can be found [here](https://github.com/albanie/mcnNMS), which can be compiled and added to your MATLAB path.  Approximate benchmarks (they do not currently include the decoding of the raw predictions) of the code are given below on a Tesla M40 with a single item batch size:
 
@@ -58,7 +59,7 @@ The Faster R-CNN pipeline makes heavy use of non-maximum suppression during trai
 | mode      | NMS (CPU) | NMS (GPU) |  
 |-----------|-----------|-----------|  
 | training  | 1.1 Hz    | 3.1 Hz    |  
-| inference | 6.7 Hz    | 8.3 Hz    |  
+| inference | 6.7 Hz    | 8.6 Hz    |  
 
 
  Running the detector with on multiple GPUs produces a significant speed boost during inference, but currently only a minimal improvement during training (this may be addressed in future). 
@@ -68,7 +69,7 @@ The Faster R-CNN pipeline makes heavy use of non-maximum suppression during trai
 | mode      | Single GPU | 2 GPUs   |
 |-----------|-----------|-----------|
 | training  | 3.1 Hz    | 3.7 Hz    |
-| inference | 7.5 Hz    | 15 Hz     |
+| inference | 8.6 Hz    | 15 Hz     |
 
 
 ### Data Augmentation

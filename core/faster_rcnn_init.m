@@ -107,7 +107,7 @@ function net = faster_rcnn_init(opts, varargin)
   % reattach fully connected layers following roipool
   largs = {'name', 'roi_pool5', 'numInputDer', 1} ;
   args = {src, rois, 'method', 'Max', 'Subdivisions', divisions, 'Transform', 1/16} ;
-  roi_pool = Layer.create(@vl_nnroipool2, args, largs{:}) ;
+  roi_pool = Layer.create(@vl_nnroipool, args, largs{:}) ;
   for ii = 1:numel(fast_rcnn_heads)
     body = net.find(fast_rcnn_heads{ii}, 1) ; body.inputs{1} = roi_pool ;
   end

@@ -3,7 +3,6 @@ function y = vl_nnroipool2(x, r, varargin)
   opts.subdivisions = [6,6] ;
   opts.transform = 1 ;
   opts.method = 'max' ;
-  opts.outChannels = 1 ;
   [dzdy,opts] = vl_argparseder(opts, varargin) ;
 
   if isempty(dzdy)

@@ -7,7 +7,8 @@ function customObj = faster_rcnn_dagnn_custom
 % Copyright (C) 2017 Samuel Albanie
 % Licensed under The MIT License [see LICENSE.md for details]
 
-  customObj.support = {'vl_nnreshape', 'vl_nnproposalrpn', 'vl_nnroipool'} ;
+  customObj.support = {'vl_nnreshape', 'vl_nnproposalrpn', 'vl_nnroipool', ...
+                      'vl_nnroipool2'} ; % dev-only
   customObj.convert = @converter ;
 
 % ----------------------------------------------------------
@@ -24,9 +25,9 @@ function [block,inputs,params] = converter(ins, out, params)
       rpnOpts = {'featStride', 'postNMSTopN', 'preNMSTopN'} ;
       block = parseCells(block, ins, rpnOpts) ;
       inputs = cellfun(@(x) {x.name}, ins(1:3)) ;
-    case 'vl_nnroipool'
+    case {'vl_nnroipool', 'vl_nnroipool2'}
       block = dagnn.ROIPooling() ;
-      roiOpts = {'transform', 'method', 'Subdivisions'} ;
+      roiOpts = {'transform', 'method', 'subdivisions'} ;
       block = parseCells(block, ins, roiOpts) ;
       inputs = cellfun(@(x) {x.name}, ins(1:2)) ;
     otherwise 
@@ -38,12 +39,8 @@ function x = parseCells(x, src, opts)
 % ------------------------------------
   for jj = 1:numel(opts)
     opt = opts{jj} ;
-    pos = find(strcmp(src, opt)) + 1 ;
+    pos = find(strcmpi(src, opt)) + 1 ;
     if ~isempty(pos) 
-      if strcmp(opt, 'Subdivisions')
-        x.subdivisions = src{pos} ; % roipooling handle naming issue
-      else
-        x.(opt) = src{pos} ; 
-      end
+      x.(opt) = src{pos} ; 
     end
   end

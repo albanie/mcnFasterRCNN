@@ -95,7 +95,6 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
   if opts.toDagNN
     customDagObj = faster_rcnn_dagnn_custom() ;
     net = toDagNN(net, customDagObj) ;
-  else
-    net = net.saveobj() ; 
   end
+  net = net.saveobj() ; 
   save(destPath, '-struct', 'net') ;

@@ -24,12 +24,8 @@ function faster_rcnn_train(expDir, opts, varargin)
                     @(i,b) opts.modelOpts.get_batch(i, b, opts.batchOpts), ...
                     opts.train, 'expDir', expDir) ;
 
-  % check scores across validation set (handles mAP scoring issue)
-  for ii = 20:2:30
-    [net, modelName] = deployModel(expDir, opts) ;
-    modelName = [modelName sprintf('-%d', ii)] ;
-    opts.eval_func('net', net, 'modelName', modelName, 'gpus', opts.train.gpus) ;
-  end
+  [net, modelName] = deployModel(expDir, opts) ;
+  opts.eval_func('net', net, 'modelName', modelName, 'gpus', opts.train.gpus) ;
 
 % --------------------------------------------------------------
 function [net, modelName] = deployModel(expDir, opts)
@@ -39,5 +35,10 @@ function [net, modelName] = deployModel(expDir, opts)
   bestNet = fullfile(expDir, sprintf('net-epoch-%d.mat', bestEpoch)) ;
   deployPath = sprintf(opts.modelOpts.deployPath, bestEpoch) ;
   opts.modelOpts.deploy_func(bestNet, deployPath) ;
-  net = Net(load(deployPath)) ;
+  stored = load(deployPath) ;
+  if ~isfield(stored, 'forward') % support dagnn & autonn storage formats
+    dag  = dagnn.DagNN.loadobj(stored) ;
+    stored = Layer.fromDagNN(dag, @faster_rcnn_autonn_custom_fn) ;
+  end
+  net = Net(stored) ;
   [~,modelName,~] = fileparts(expDir) ; 
