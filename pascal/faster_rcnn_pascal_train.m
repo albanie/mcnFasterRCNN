@@ -68,6 +68,7 @@ function faster_rcnn_pascal_train(varargin)
   opts.useValForTraining = true ; 
   opts.patchAugmentation = false ;
   opts.use_vl_imreadjpeg = true ; 
+  opts.instanceNormalization = false ;
   opts.distortAugmentation = false ;
   opts.trainData = '07' ;
   opts.zoomScale = 2 ;
@@ -112,13 +113,19 @@ function faster_rcnn_pascal_train(varargin)
   modelOpts.architecture = opts.architecture ;
   modelOpts.batchNormalization = false ;
   modelOpts.batchRenormalization = false ;
+  modelOpts.instanceNormalization = opts.instanceNormalization ;
   modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
   modelOpts.initMethod = 'gaussian' ;
   modelOpts.freezeBnorm = 0 ;
-  modelOpts.mergeBnorm = 1 ;
   protoName = sprintf('%s_train.prototxt', opts.architecture) ;
   protoDir = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc') ;
   modelOpts.protoPath = fullfile(protoDir, protoName) ;
+
+  % sanity checks
+  msg = 'cannot use both batch and instance normalization' ;
+  assert(~(opts.instanceNormalization && modelOpts.batchNormalization), msg) ;
+  % don't merge if using Instance Norm
+  modelOpts.mergeBnorm = ~modelOpts.instanceNormalization ;
 
   % Set learning rates
   steadyLR = 0.001 ;

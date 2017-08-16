@@ -17,3 +17,4 @@ function expName = getExpNameFRCNN(mopts, dopts)
   if dopts.zoomAugmentation
       expName = [ expName sprintf('-zoom-%d', dopts.zoomScale) ] ;
   end
+  if mopts.instanceNormalization, expName = [ expName '-in' ] ; end

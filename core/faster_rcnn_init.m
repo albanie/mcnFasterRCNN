@@ -12,7 +12,8 @@ function net = faster_rcnn_init(opts, varargin)
   imInfo = Input('imInfo') ;
 
   % select RPN/fast-rcnn locations
-  switch opts.modelOpts.architecture
+  modelName = opts.modelOpts.architecture ;
+  switch modelName 
     case 'vgg16'
       rpn_base = 'relu5_3' ;
       rpn_channels_in = 512 ;
@@ -36,7 +37,7 @@ function net = faster_rcnn_init(opts, varargin)
   end
 
   % freeze early layers and modify trunk biases to match caffe
-  dag = loadTrunkModel(opts) ;
+  dag = trunk_model_zoo(modelName) ;
   dag = freezeAndMatchLayers(dag, freeze_decay, opts) ;
   dag = pruneUnusedLayers(dag, opts) ;
 
@@ -153,11 +154,34 @@ function net = faster_rcnn_init(opts, varargin)
   cls_error = Layer.create(@vl_nnloss, args, largs{:}) ;
 
   checkLearningParams(rpn_multitask_loss, multitask_loss, opts) ;
-  net = Net(rpn_multitask_loss, multitask_loss, cls_error) ;
+
+  % turn on instance normalisation if requested. This is done by ensuring 
+  % a batch size of one, and fixing bn to train mode
+  loss_layers = {rpn_multitask_loss, multitask_loss} ;
+  if opts.modelOpts.instanceNormalization
+    loss_layers = applyInstanceNormalization(loss_layers) ;
+    assert(opts.modelOpts.batchSize == 1, 'single batch items for IN') ;
+  end
+
+  net = Net(loss_layers{:}, cls_error) ;
 
   % set meta information to match original training code
   rgb = [122.771, 115.9465, 102.9801] ;
   net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
+
+% --------------------------------------------------
+function layers = applyInstanceNormalization(layers)
+% --------------------------------------------------
+  % fix to training mode for IN
+  for ii = 1:numel(layers)
+    layer = layers{ii} ;
+    bn_layers = layer.find(@vl_nnbnorm_wrapper) ;
+    for jj = 1:numel(bn_layers)
+      ins = bn_layers{jj}.inputs ;
+      pos = cellfun(@(x) isa(x, 'Input') && strcmp(x.name, 'testMode'), ins) ;
+      if any(pos), bn_layers{jj}.inputs{pos} = 0 ; end
+    end
+  end
 
 % ---------------------------------------------------------------------
 function net = add_block(net, name, opts, sz, nonLinearity, varargin)
@@ -174,8 +198,9 @@ function net = add_block(net, name, opts, sz, nonLinearity, varargin)
   if nonLinearity
     bn = opts.modelOpts.batchNormalization ;
     rn = opts.modelOpts.batchRenormalization ;
+    in = opts.modelOpts.instanceNormalization ;
     assert(bn + rn < 2, 'cannot add both batch norm and renorm') ;
-    if bn
+    if bn || in % (instance normalisation will be fixed to train mode later)
       net = vl_nnbnorm(net, 'learningRate', [2 1 0.05], 'testMode', false) ;
       net.name = sprintf('%s_bn', name) ;
     elseif rn
