@@ -1,4 +1,4 @@
-function dag = trunk_model_zoo(modelName)
+function dag = trunk_model_zoo(modelName, opts)
 
   modelDir = fullfile(vl_rootnn, 'data/models-import') ;
   switch modelName
@@ -25,3 +25,16 @@ function dag = trunk_model_zoo(modelName)
   else
     dag = dagnn.DagNN.loadobj(storedNet) ;
   end
+
+  % prune unused layers
+  switch modelName
+    case 'vgg16'
+      dag.removeLayer('fc8') ; 
+      dag.renameVar('x0', 'data') ; % fix old naming scheme
+    case 'resnet50'
+      dag.removeLayer('fc1000') ; 
+  end
+  dag.removeLayer('prob') ;  
+
+  % flatten bnorm if required
+  if opts.modelOpts.mergeBnorm, dag = merge_down_batchnorm(dag) ; end

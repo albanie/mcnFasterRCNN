@@ -1,4 +1,4 @@
-function checkLearningParams(rpn_loss, fast_rcnn_loss, opts)
+function checkLearningParams(rpn_loss, det_loss, opts)
 %CHECKlEARNINGPARAMS compare parameters against caffe.  
 
   % Algo: we first parse the prototxt and build a set of basic "layer" 
@@ -21,7 +21,7 @@ function checkLearningParams(rpn_loss, fast_rcnn_loss, opts)
     if ~isempty(mcnLayer)
       mcn = mcnLayer{1} ; 
     else 
-      mcn = fast_rcnn_loss.find(layer.name, 1) ;
+      mcn = det_loss.find(layer.name, 1) ;
     end
     switch layer.type
       case 'Convolution'
@@ -127,7 +127,7 @@ function layers = parseCaffeLayers(opts)
 
   % mini parser
   stack = {} ; tokens = strsplit(proto, '\n') ; 
-  known = {'ResNet50_BN_SCALE_Merge', 'VGG_ILSVRC_16_layers'} ;
+  known = {'ResNet-50', 'ResNet50_BN_SCALE_Merge', 'VGG_ILSVRC_16_layers'} ;
   msg = 'wrong proto' ; 
   assert(contains(tokens{1}, known), msg) ; tokens(1) = [] ;  
   layers = {} ; layer = struct() ;

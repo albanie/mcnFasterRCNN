@@ -30,8 +30,7 @@ function [block,inputs,params] = converter(ins, out, params)
       roiOpts = {'transform', 'method', 'subdivisions'} ;
       block = parseCells(block, ins, roiOpts) ;
       inputs = cellfun(@(x) {x.name}, ins(1:2)) ;
-    otherwise 
-      error('%s is unsupported', funcType) ;
+    otherwise, error('%s is unsupported', funcType) ;
   end
 
 % ------------------------------------

@@ -14,6 +14,7 @@ function expName = getExpNameFRCNN(mopts, dopts)
   if dopts.flipAugmentation, expName = [ expName '-flip' ] ; end
   if dopts.patchAugmentation, expName = [ expName '-patch' ] ; end
   if dopts.distortAugmentation, expName = [ expName '-distort' ] ; end
+  if mopts.atrous, expName = [ expName '-atrous' ] ; end
   if dopts.zoomAugmentation
       expName = [ expName sprintf('-zoom-%d', dopts.zoomScale) ] ;
   end

@@ -40,17 +40,17 @@ function y = vl_nnsmoothL1loss(x, t, varargin)
 % This file is part of the VLFeat library and is made available under
 % the terms of the BSD license (see the COPYING file).
 
-opts.sigma = 1 ;
-opts.insideWeights = [] ;
-opts.outsideWeights = [] ;
-[opts, dzdy] = vl_argparsepos(opts, varargin, 'nonrecursive') ;
+  opts.sigma = 1 ;
+  opts.insideWeights = [] ;
+  opts.outsideWeights = [] ;
+  [opts, dzdy] = vl_argparsepos(opts, varargin, 'nonrecursive') ;
 
-delta = x - t ;
-if ~isempty(opts.insideWeights), delta = delta .* opts.insideWeights ; end
-absDelta = abs(delta) ; sigma2 = opts.sigma ^ 2 ;
-linearRegion = (absDelta > 1. / sigma2) ;
+  delta = x - t ;
+  if ~isempty(opts.insideWeights), delta = delta .* opts.insideWeights ; end
+  absDelta = abs(delta) ; sigma2 = opts.sigma ^ 2 ;
+  linearRegion = (absDelta > 1. / sigma2) ;
 
-if isempty(dzdy)
+  if isempty(dzdy)
     absDelta(linearRegion) = absDelta(linearRegion) - 0.5 / sigma2 ;
     absDelta(~linearRegion) = 0.5 * sigma2 * absDelta(~linearRegion) .^ 2 ;
     if ~isempty(opts.outsideWeights)
@@ -58,10 +58,10 @@ if isempty(dzdy)
     else
       y = sum(absDelta(:)) ;
     end
-else
+  else
     delta(linearRegion) = sign(delta(linearRegion));
     delta(~linearRegion) = sigma2 * delta(~linearRegion) ;
     if ~isempty(opts.outsideWeights), delta = delta .* opts.outsideWeights ; end
     if ~isempty(opts.insideWeights), delta = delta .* opts.insideWeights ; end
     y = delta .* dzdy{1} ;
-end
+  end

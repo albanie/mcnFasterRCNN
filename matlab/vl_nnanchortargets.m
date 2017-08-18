@@ -11,10 +11,10 @@ function [l, t, iw, ow, cw] = vl_nnanchortargets(x, gb, imInfo, varargin)
   opts.rpnBatchSize = 256 ;
   opts.scales = [8, 16, 32] ;
   opts.ratios = [0.5, 1, 2] ;
+  opts.allowedBorder = false ;
   opts.rpnPositiveWeight = -1 ;
   opts.rpnNegativeOverlap = 0.3 ;
   opts.rpnPositiveOverlap = 0.7 ;
-  opts.allowedBorder = false ;
   opts.clobberPositives = false ;
   opts.filterSmallProposals = true ;
   opts.negLabel = 1 ; % note: this is different to caffe (-1=ignore, 0=neg)
