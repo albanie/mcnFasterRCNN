@@ -32,13 +32,31 @@ There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets 
 
 ### Dependencies
 
-To simply run a detector in test mode, there are no additional dependencies.  If you wish to train a new detector or improve detection efficiency, the following modules are required (these can be installed with `vl_contrib`):
+Faster-RCNN requires the following two modules:
 
-* [autonn](https://github.com/vlfeat/autonn) - a wrapper module for matconvnet
+* [autonn](https://github.com/vlfeat/autonn) - automatic differenation
+* [mcnExtraLayers](https://github.com/albanie/mcnExtraLayers) - extra MatConvNet layers
+
+
+If you wish to improve detection efficiency, the following modules are required (these can be installed with `vl_contrib`):
+
 * [GPU NMS](https://github.com/albanie/mcnNMS) - a CUDA-based implementation of non-maximum supression
 * [mcnSSD](https://github.com/albanie/mcnSSD) - SSD detector implementation (provides data augmentation sampler)
 
 The effect of the CUDA NMS module is discussed below.
+
+### Installation
+
+The easiest way to use this module is to install it with the `vl_contrib` 
+package manager. `mcnSSD` can be installed with 
+the following commands from the root directory of your MatConvNet 
+installation:
+
+```
+vl_contrib('install', 'mcnSSD') ;
+vl_contrib('compile', 'mcnSSD') ;
+vl_contrib('setup', 'mcnSSD') ;
+vl_contrib('test', 'mcnSSD') ; % optional
   
 
 ### Performance
