@@ -55,7 +55,6 @@ installation:
 
 ```
 vl_contrib('install', 'mcnFasterRCNN') ;
-vl_contrib('compile', 'mcnFasterRCNN') ;
 vl_contrib('setup', 'mcnFasterRCNN') ;
 vl_contrib('test', 'mcnFasterRCNN') ; % optional
 ```  
