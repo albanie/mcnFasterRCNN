@@ -45,19 +45,21 @@ If you wish to improve detection efficiency, the following modules are required 
 
 The effect of the CUDA NMS module is discussed below.
 
+
 ### Installation
 
 The easiest way to use this module is to install it with the `vl_contrib` 
-package manager. `mcnSSD` can be installed with 
+package manager. `mcnFasterRCNN` can be installed with 
 the following commands from the root directory of your MatConvNet 
 installation:
 
 ```
-vl_contrib('install', 'mcnSSD') ;
-vl_contrib('compile', 'mcnSSD') ;
-vl_contrib('setup', 'mcnSSD') ;
-vl_contrib('test', 'mcnSSD') ; % optional
-  
+vl_contrib('install', 'mcnFasterRCNN') ;
+vl_contrib('compile', 'mcnFasterRCNN') ;
+vl_contrib('setup', 'mcnFasterRCNN') ;
+vl_contrib('test', 'mcnFasterRCNN') ; % optional
+```  
+
 
 ### Performance
 
