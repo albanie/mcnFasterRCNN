@@ -32,19 +32,17 @@ There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets 
 
 ### Dependencies
 
-Faster-RCNN requires the following two modules:
+Faster-RCNN requires the following three modules:
 
 * [autonn](https://github.com/vlfeat/autonn) - automatic differenation
 * [mcnExtraLayers](https://github.com/albanie/mcnExtraLayers) - extra MatConvNet layers
-
-
-If you wish to improve detection efficiency, the following modules are required (these can be installed with `vl_contrib`):
-
 * [GPU NMS](https://github.com/albanie/mcnNMS) - a CUDA-based implementation of non-maximum supression
+
+If you wish to provide more extensive data augmentation, the following module is required (it can also be installed with `vl_contrib`):
+
 * [mcnSSD](https://github.com/albanie/mcnSSD) - SSD detector implementation (provides data augmentation sampler)
 
 The effect of the CUDA NMS module is discussed below.
-
 
 ### Installation
 
