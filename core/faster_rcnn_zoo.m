@@ -5,7 +5,7 @@ function net = faster_rcnn_zoo(modelName)
 %  wide web.
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   modelNames = {
     'faster-rcnn-vggvd-coco'...
