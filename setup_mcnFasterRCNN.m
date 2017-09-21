@@ -6,7 +6,6 @@ function setup_mcnFasterRCNN()
 % Licensed under The MIT License [see LICENSE.md for details]
 
   root = fileparts(mfilename('fullpath')) ;
-  addpath(root) ;
   addpath(root, [root '/matlab'], [root '/pascal'], [root '/core']) ;
   addpath([root '/pascal/helpers'], [root '/coco'], [root '/misc']) ;
   addpath([vl_rootnn '/examples/fast_rcnn/bbox_functions']) ;
