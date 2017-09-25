@@ -7,6 +7,7 @@ function setup_mcnFasterRCNN()
 
   % add dependencies
   check_dependency('autonn') ;
+  check_dependency('mcnNMS') ;
   check_dependency('mcnExtraLayers') ;
   check_dependency('mcnDatasets') ;
 
