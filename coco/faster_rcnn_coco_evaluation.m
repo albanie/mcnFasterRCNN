@@ -72,6 +72,7 @@ function results = faster_rcnn_coco_evaluation(varargin)
   modelOpts.numClasses = 81 ;
   modelOpts.nmsThresh = 0.3 ;
   modelOpts.confThresh = 0.05 ;
+  modelOpts.classAgnosticReg = false ; 
 
   % configure dataset options
   dataOpts.name = 'coco' ;
