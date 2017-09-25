@@ -30,6 +30,13 @@ function results = faster_rcnn_coco_evaluation(varargin)
 %   `year` :: 2014
 %    Select year of coco data to run evaluation on.
 %
+%   `cocoAPI` :: fullfile(vl_rootnn, 'data/coco/MatlabAPI')
+%    Path to the ms coco Matlab API (required for imdb construction)
+%
+%   `labelMapFile' :: fullfile(vl_rootnn,'contrib/mcnDatasets/coco/label_map.txt') ;
+%    Path to the mapping between coco categories and indices.  By default, this
+%    will be found from the mcnDatasets module.
+%
 % Copyright (C) 2017 Samuel Albanie 
 % Licensed under The MIT License [see LICENSE.md for details]
 
@@ -40,8 +47,12 @@ function results = faster_rcnn_coco_evaluation(varargin)
   opts.refreshCache = true ;
   opts.modelName = 'faster-rcnn-vggvd-coco' ;
   opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
-  opts.year = 2015 ; % 2015 only contains test instances
-  opts.useMiniVal = 0 ; opts.testset = 'test-dev' ;
+  opts.cocoAPI = fullfile(vl_rootnn, 'data/coco/MatlabAPI') ;
+  opts.year = 2014 ; % 2015 only contains test instances
+  opts.useMiniVal = 0 ; 
+  opts.testset = 'val' ;
+  opts.labelMapFile = fullfile(vl_rootnn, ... 
+                               'contrib/mcnDatasets/coco/label_map.txt') ;
   opts = vl_argparse(opts, varargin) ;
 
   % load network and convert to autonn
@@ -52,7 +63,8 @@ function results = faster_rcnn_coco_evaluation(varargin)
   modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
 
   % evaluation options
-  opts.useMiniVal = 0 ; opts.prefetch = true ; opts.fixedSizeInputs = false ;
+  opts.prefetch = true ; 
+  opts.fixedSizeInputs = false ;
 
   % configure batch opts
   batchOpts.batchSize = numel(opts.gpus) * 1 ;
@@ -64,6 +76,9 @@ function results = faster_rcnn_coco_evaluation(varargin)
 
   % cache configuration 
   cacheOpts.refreshCache = opts.refreshCache ;
+
+  % add coco api to path if needed
+  if ~exist('CocoApi', 'file'), addpath(opts.cocoAPI) ; end
 
   % configure model options
   modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
@@ -83,8 +98,10 @@ function results = faster_rcnn_coco_evaluation(varargin)
   dataOpts.eval_func = @coco_eval_func ;
   dataOpts.displayResults = @displayCocoResults ;
   dataOpts.configureImdbOpts = @configureImdbOpts ;
-  dataOpts.labelMapFile = fullfile(vl_rootnn, ...
-                                 'contrib/mcnFasterRCNN/coco/label_map.txt') ;
+  % minival annotations are only used for 2014
+  dataOpts.miniValPath = fullfile(opts.dataRoot, ... 
+                             'mscoco/annotations/instances_minival2014.json') ;
+  dataOpts.labelMapFile = opts.labelMapFile ;
 
   % select imdb based on year
   imdbName = sprintf('imdb%d.mat', opts.year) ;
