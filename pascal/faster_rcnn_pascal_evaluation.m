@@ -9,6 +9,9 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 %   `net` :: []
 %    The `autonn` network object to be evaluated.  If not supplied, a network
 %    will be loaded instead by name from the detector zoo.
+
+%   `testset` :: 'test'
+%    The subset of pascal VOC 2007 to be used for evaluation.
 %
 %   `gpus` :: []
 %    If provided, the gpu ids to be used for processing.
@@ -41,6 +44,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   opts.nms = 'cpu' ;  
   opts.refreshCache = false ;
   opts.evalVersion = 'fast' ;
+  opts.testset = 'test' ; 
   opts.modelName = 'faster-rcnn-vggvd-pascal' ;
   opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts = vl_argparse(opts, varargin) ;
@@ -57,7 +61,6 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   %net = configureNMS(net, opts) ; % configure NMS optimisations if required
 
   % evaluation options
-  opts.testset = 'test' ; 
   opts.prefetch = true ; % has limited value on small batches
 
   % configure batch opts
