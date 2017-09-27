@@ -42,9 +42,9 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   opts.net = [] ;
   opts.gpus = 4 ;
   opts.nms = 'cpu' ;  
-  opts.refreshCache = false ;
-  opts.evalVersion = 'fast' ;
   opts.testset = 'test' ; 
+  opts.evalVersion = 'fast' ;
+  opts.refreshCache = false ;
   opts.modelName = 'faster-rcnn-vggvd-pascal' ;
   opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts = vl_argparse(opts, varargin) ;
@@ -58,7 +58,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
     net = opts.net ;
   end
 
-  %net = configureNMS(net, opts) ; % configure NMS optimisations if required
+  net = configureNMS(net, opts) ; % configure NMS optimisations if required
 
   % evaluation options
   opts.prefetch = true ; % has limited value on small batches
@@ -82,6 +82,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 
   % configure dataset options
   dataOpts.name = 'pascal' ;
+  dataOpts.testData = '07' ;
   dataOpts.resultsFormat = 'minMax' ; 
   dataOpts.getImdb = @getPascalImdb ;
   dataOpts.dataRoot = opts.dataRoot ;
@@ -135,12 +136,13 @@ function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
 % (must be done after the imdb is in place since evaluation
 % paths are set relative to data locations)
 
-  BENCHMARK = 0 ;
-  if BENCHMARK  % benchmark
-    keep = 5 ; testIdx = find(imdb.images.set == 3) ;
-    imdb.images.set(testIdx(keep+1:end)) = 4 ;
-  end
-  opts.dataOpts = configureVOC(expDir, opts.dataOpts, 'test') ;
+  switch opts.dataOpts.testData   
+    case '07', imdb.images.set(imdb.images.year == 2012) = -1 ;   
+    case '12', imdb.images.set(imdb.images.year == 2007) = -1 ;   
+    case '0712' % do nothing    
+    otherwise, error('Data %s not recognized', opts.dataOpts.testData) ;    
+  end   
+  opts.dataOpts = configureVOC(expDir, opts.dataOpts, opts.testset) ;
 
 %-----------------------------------------------------------
 function dataOpts = configureVOC(expDir, dataOpts, testset) 
