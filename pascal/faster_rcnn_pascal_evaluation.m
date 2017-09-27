@@ -107,7 +107,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   opts.batchOpts = batchOpts ;
   opts.cacheOpts = cacheOpts ;
 
-  faster_rcnn_evaluation(expDir, net, opts) ;
+  aps = faster_rcnn_evaluation(expDir, net, opts) ;
 
 % ------------------------------------------------------------------
 function aps = pascal_eval_func(modelName, decodedPreds, imdb, opts)
