@@ -12,7 +12,7 @@ function faster_rcnn_pascal_train(varargin)
 %    If provided, the gpu ids to be used for processing.
 %
 %   `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
-%    The path to the directory containing the coco data
+%    The path to the directory containing the Pascal VOC data
 %
 %   `pruneCheckpoints` :: true
 %    Determines whether intermediate training files should be cleared to save
