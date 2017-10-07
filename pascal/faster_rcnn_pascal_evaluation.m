@@ -1,4 +1,4 @@
-function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
+function aps = faster_rcnn_pascal_evaluation(varargin)
 %FASTER_RCNN_PASCAL_EVALUATION Evaluate a Faster-RCNN model on VOC 2007
 %   FASTER_RCNN_PASCAL_EVALUATION computes and evaluates a set of detections
 %   for a given Faster-RCNN detector on the Pascal VOC 2007 test set.
@@ -9,6 +9,9 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 %   `net` :: []
 %    The `autonn` network object to be evaluated.  If not supplied, a network
 %    will be loaded instead by name from the detector zoo.
+
+%   `testset` :: 'test'
+%    The subset of pascal VOC 2007 to be used for evaluation.
 %
 %   `gpus` :: []
 %    If provided, the gpu ids to be used for processing.
@@ -39,9 +42,10 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   opts.net = [] ;
   opts.gpus = 4 ;
   opts.nms = 'cpu' ;  
-  opts.refreshCache = false ;
+  opts.testset = 'test' ; 
   opts.evalVersion = 'fast' ;
   opts.modelName = 'faster-rcnn-mcn-vggvd-pascal' ;
+  opts.refreshCache = false ;
   opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
   opts = vl_argparse(opts, varargin) ;
 
@@ -54,10 +58,9 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
     net = opts.net ;
   end
 
-  %net = configureNMS(net, opts) ; % configure NMS optimisations if required
+  net = configureNMS(net, opts) ; % configure NMS optimisations if required
 
   % evaluation options
-  opts.testset = 'test' ; 
   opts.prefetch = true ; % has limited value on small batches
 
   % configure batch opts
@@ -79,6 +82,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
 
   % configure dataset options
   dataOpts.name = 'pascal' ;
+  dataOpts.testData = '07' ;
   dataOpts.resultsFormat = 'minMax' ; 
   dataOpts.getImdb = @getPascalImdb ;
   dataOpts.dataRoot = opts.dataRoot ;
@@ -103,7 +107,7 @@ function [aps, speed] = faster_rcnn_pascal_evaluation(varargin)
   opts.batchOpts = batchOpts ;
   opts.cacheOpts = cacheOpts ;
 
-  faster_rcnn_evaluation(expDir, net, opts) ;
+  aps = faster_rcnn_evaluation(expDir, net, opts) ;
 
 % ------------------------------------------------------------------
 function aps = pascal_eval_func(modelName, decodedPreds, imdb, opts)
@@ -132,12 +136,13 @@ function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
 % (must be done after the imdb is in place since evaluation
 % paths are set relative to data locations)
 
-  BENCHMARK = 0 ;
-  if BENCHMARK  % benchmark
-    keep = 5 ; testIdx = find(imdb.images.set == 3) ;
-    imdb.images.set(testIdx(keep+1:end)) = 4 ;
-  end
-  opts.dataOpts = configureVOC(expDir, opts.dataOpts, 'test') ;
+  switch opts.dataOpts.testData   
+    case '07', imdb.images.set(imdb.images.year == 2012) = -1 ;   
+    case '12', imdb.images.set(imdb.images.year == 2007) = -1 ;   
+    case '0712' % do nothing    
+    otherwise, error('Data %s not recognized', opts.dataOpts.testData) ;    
+  end   
+  opts.dataOpts = configureVOC(expDir, opts.dataOpts, opts.testset) ;
 
 %-----------------------------------------------------------
 function dataOpts = configureVOC(expDir, dataOpts, testset) 
