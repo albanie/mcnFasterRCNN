@@ -5,6 +5,11 @@ function aps = faster_rcnn_pascal_evaluation(varargin)
 %
 %   FASTER_RCNN_PASCAL_EVALUATION(..'name', value) accepts the following 
 %   options:
+
+%   `year` :: 2007
+%    The year of the challenge to evalutate on. Currently 2007 (val and test)
+%    and 2012 (val) are supported.  Predictions for 2012 test must be submitted
+%    to the official evaluation server to obtain scores.
 %
 %   `net` :: []
 %    The `autonn` network object to be evaluated.  If not supplied, a network
@@ -21,9 +26,6 @@ function aps = faster_rcnn_pascal_evaluation(varargin)
 %    which runs the original (slow) pascal evaluation code, or 'fast', which
 %    runs an optimised version which is useful during development.
 %
-%   `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
-%    The path to the directory containing the pascal data
-%
 %   `nms` :: 'cpu'
 %    NMS can be run on either the gpu if the dependency has been installed
 %    (see README.md for details), or on the cpu (slower).
@@ -36,17 +38,72 @@ function aps = faster_rcnn_pascal_evaluation(varargin)
 %    If true, overwrite previous predictions by any detector sharing the 
 %    same model name, otherwise, load results directly from cache.
 %
+% ----------------------------------------------------------------------------
+%   `modelOpts` :: struct(...)
+%    A structure of options relating to the properties of the model, with the 
+%    following fields:
+%      `predVar` :: 'detection_out'
+%       The name of the output prediction variable of the network 
+%
+%      `maxPreds` :: 300 
+%       The maximum number of predictions that are kept per image during 
+%       inference.
+%
+%      `nmsThresh` :: 0.3 
+%       The NMS threshold used to select predictions on a single image.
+%
+%      `confThresh` :: 0.0 
+%       The minimum confidence required for a prediction to be scored as a 
+%       "detection" by the network.
+
+% ----------------------------------------------------------------------------
+%   `dataOpts` :: struct(...)
+%    A structure of options setting paths for the data, with the following 
+%    fields:
+%      `dataRoot` :: fullfile(vl_rootnn, 'data/datasets')
+%       The path to the directory containing the pascal data
+%
+%
+%
 % Copyright (C) 2017 Samuel Albanie 
 % Licensed under The MIT License [see LICENSE.md for details]
 
   opts.net = [] ;
   opts.gpus = 4 ;
   opts.nms = 'cpu' ;  
+  opts.year = 2007 ;
   opts.testset = 'test' ; 
   opts.evalVersion = 'fast' ;
   opts.modelName = 'faster-rcnn-mcn-vggvd-pascal' ;
   opts.refreshCache = false ;
-  opts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
+
+  % configure dataset options
+  opts.dataOpts.name = 'pascal' ;
+  opts.dataOpts.resultsFormat = 'minMax' ; 
+  opts.dataOpts.getImdb = @getCombinedPascalImdb ;
+  opts.dataOpts.dataRoot = fullfile(vl_rootnn, 'data/datasets') ;
+  opts.dataOpts.eval_func = @pascal_eval_func ;
+  opts.dataOpts.evalVersion = opts.evalVersion ;
+  opts.dataOpts.displayResults = @displayPascalResults ;
+  opts.dataOpts.configureImdbOpts = @configureImdbOpts ;
+  opts.dataOpts.imdbPath = fullfile(vl_rootnn, ...
+                                    'data/pascal/standard_imdb/imdb.mat') ;
+
+  % configure model options
+  opts.modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
+  opts.modelOpts.nmsThresh = 0.3 ;
+  opts.modelOpts.numClasses = 21 ; % includes background for pascal
+  opts.modelOpts.confThresh = 0.0 ;
+  opts.modelOpts.maxPredsPerImage = 100 ; 
+  opts.modelOpts.classAgnosticReg = false ; 
+  opts.modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
+
+  % configure batch opts
+  opts.batchOpts.scale = 600 ;
+  opts.batchOpts.maxScale = 1000 ;
+  opts.batchOpts.use_vl_imreadjpeg = 1 ;
+  opts.batchOpts.numThreads = 4 ;
+  opts.batchOpts.prefetch = true ;
   opts = vl_argparse(opts, varargin) ;
 
   % if needed, load network and convert to autonn
@@ -59,52 +116,19 @@ function aps = faster_rcnn_pascal_evaluation(varargin)
   end
 
   net = configureNMS(net, opts) ; % configure NMS optimisations if required
+  opts.batchOpts.batchSize = max(numel(opts.gpus) * 1, 1) ; % use bsize 1 on cpu
+  opts.batchOpts.averageImage = net.meta.normalization.averageImage ;
 
-  % evaluation options
-  opts.prefetch = true ; % has limited value on small batches
-
-  % configure batch opts
-  batchOpts.scale = 600 ;
-  batchOpts.maxScale = 1000 ;
-  batchOpts.use_vl_imreadjpeg = 1 ;
-  batchOpts.batchSize = max(numel(opts.gpus) * 1, 1) ; % use bsize 1 on cpu
-  batchOpts.numThreads = numel(opts.gpus) * 4 ;
-  batchOpts.averageImage = net.meta.normalization.averageImage ;
-
-  % configure model options
-  modelOpts.maxPreds = 300 ; % the maximum number of total preds/img
-  modelOpts.nmsThresh = 0.3 ;
-  modelOpts.numClasses = 21 ; % includes background for pascal
-  modelOpts.confThresh = 0.0 ;
-  modelOpts.maxPredsPerImage = 100 ; 
-  modelOpts.classAgnosticReg = false ; 
-  modelOpts.get_eval_batch = @faster_rcnn_eval_get_batch ;
-
-  % configure dataset options
-  dataOpts.name = 'pascal' ;
-  dataOpts.testData = '07' ;
-  dataOpts.resultsFormat = 'minMax' ; 
-  dataOpts.getImdb = @getPascalImdb ;
-  dataOpts.dataRoot = opts.dataRoot ;
-  dataOpts.eval_func = @pascal_eval_func ;
-  dataOpts.evalVersion = opts.evalVersion ;
-  dataOpts.displayResults = @displayPascalResults ;
-  dataOpts.configureImdbOpts = @configureImdbOpts ;
-  dataOpts.imdbPath = fullfile(vl_rootnn, 'data/pascal/standard_imdb/imdb.mat') ;
 
   % configure paths and cache 
-  expDir = fullfile(vl_rootnn, 'data/evaluations', dataOpts.name, opts.modelName) ;
+  expDir = fullfile(vl_rootnn, 'data/evaluations', opts.dataOpts.name, ...
+                                                          opts.modelName) ;
   resultsFile = sprintf('%s-%s-results.mat', opts.modelName, opts.testset) ;
-  evalCacheDir = fullfile(expDir, 'eval_cache') ;
+  evalCacheDir = fullfile(expDir, sprintf('eval_cache-%d', opts.year)) ;
   cacheOpts.resultsCache = fullfile(evalCacheDir, resultsFile) ;
   cacheOpts.evalCacheDir = evalCacheDir ;
   cacheOpts.refreshCache = opts.refreshCache ;
   if ~exist(evalCacheDir, 'dir'), mkdir(evalCacheDir) ; end
-
-  % configure meta options
-  opts.dataOpts = dataOpts ;
-  opts.modelOpts = modelOpts ;
-  opts.batchOpts = batchOpts ;
   opts.cacheOpts = cacheOpts ;
 
   aps = faster_rcnn_evaluation(expDir, net, opts) ;
@@ -112,22 +136,27 @@ function aps = faster_rcnn_pascal_evaluation(varargin)
 % ------------------------------------------------------------------
 function aps = pascal_eval_func(modelName, decodedPreds, imdb, opts)
 % ------------------------------------------------------------------
-  fprintf('evaluating %s \n', modelName) ;
+  fprintf('evaluating predictions for %s\n', modelName) ;
   numClasses = numel(imdb.meta.classes) - 1 ;  % exclude background
   aps = zeros(numClasses, 1) ;
-
-  for c = 1:numClasses
+  if (opts.year == 2012) && strcmp(opts.testset, 'test')
+    fprintf('preds on 2012 test set must be submitted to the eval server\n') ;
+    keyboard % TODO(samuel): Add support for output format
+  else
+    for c = 1:numClasses
       className = imdb.meta.classes{c + 1} ; % offset for background
       results = eval_voc(className, ...
                          decodedPreds.imageIds{c}, ...
                          decodedPreds.bboxes{c}, ...
                          decodedPreds.scores{c}, ...
                          opts.dataOpts.VOCopts, ...
-                         'evalVersion', opts.dataOpts.evalVersion) ;
-      fprintf('%s %.1\n', className, 100 * results.ap_auc) ;
-      aps(c) = results.ap_auc ; 
+                         'evalVersion', opts.dataOpts.evalVersion, ...
+                         'year', opts.year) ;
+      fprintf('%s %.1\n', className, 100 * results.ap) ;
+      aps(c) = results.ap_auc ;
+    end
+    save(opts.cacheOpts.resultsCache, 'aps') ;
   end
-  save(opts.cacheOpts.resultsCache, 'aps') ;
 
 % -----------------------------------------------------------
 function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
@@ -135,66 +164,18 @@ function [opts, imdb] = configureImdbOpts(expDir, opts, imdb)
 % configure VOC options 
 % (must be done after the imdb is in place since evaluation
 % paths are set relative to data locations)
-
-  switch opts.dataOpts.testData   
-    case '07', imdb.images.set(imdb.images.year == 2012) = -1 ;   
-    case '12', imdb.images.set(imdb.images.year == 2007) = -1 ;   
-    case '0712' % do nothing    
-    otherwise, error('Data %s not recognized', opts.dataOpts.testData) ;    
+  switch opts.year   
+    case 2007, imdb.images.set(imdb.images.year == 2012) = -1 ;   
+    case 2012, imdb.images.set(imdb.images.year == 2007) = -1 ;   
+    case 0712 % do nothing    
+    otherwise, error('Data from year %s not recognized', opts.year) ;    
   end   
-  opts.dataOpts = configureVOC(expDir, opts.dataOpts, opts.testset) ;
 
-%-----------------------------------------------------------
-function dataOpts = configureVOC(expDir, dataOpts, testset) 
-%-----------------------------------------------------------
-% LOADPASCALOPTS Load the pascal VOC database options
-%
-% NOTE: The Pascal VOC dataset has a number of directories 
-% and attributes. The paths to these directories are 
-% set using the VOCdevkit code. The VOCdevkit initialization 
-% code assumes it is being run from the devkit root folder, 
-% so we make a note of our current directory, change to the 
-% devkit root, initialize the pascal options and then change
-% back into our original directory 
-
-  VOCRoot = fullfile(dataOpts.dataRoot, 'VOCdevkit2007') ;
-  VOCopts.devkitCode = fullfile(VOCRoot, 'VOCcode') ;
-
-  % check the existence of the required folders
-  assert(logical(exist(VOCRoot, 'dir')), 'VOC root directory not found') ;
-  assert(logical(exist(VOCopts.devkitCode, 'dir')), 'devkit code not found') ;
-
-  currentDir = pwd ;
-  cd(VOCRoot) ;
-  addpath(VOCopts.devkitCode) ;
-
-  % VOCinit loads database options into a variable called VOCopts
-  VOCinit ; 
-
-  dataDir = fullfile(VOCRoot, '2007') ;
-  VOCopts.localdir = fullfile(dataDir, 'local') ;
-  VOCopts.imgsetpath = fullfile(dataDir, 'ImageSets/Main/%s.txt') ;
-  VOCopts.imgpath = fullfile(dataDir, 'ImageSets/Main/%s.txt') ;
-  VOCopts.annopath = fullfile(dataDir, 'Annotations/%s.xml') ;
-  VOCopts.cacheDir = fullfile(expDir, '2007/Results/Cache') ;
-  VOCopts.drawAPCurve = false ;
-  VOCopts.testset = testset ;
-  detDir = fullfile(expDir, 'VOCdetections') ;
-
-  % create detection and cache directories if required
-  requiredDirs = {VOCopts.localdir, VOCopts.cacheDir, detDir} ;
-  for i = 1:numel(requiredDirs)
-      reqDir = requiredDirs{i} ;
-      if ~exist(reqDir, 'dir') 
-          mkdir(reqDir) ;
-      end
-  end
-
-  VOCopts.detrespath = fullfile(detDir, sprintf('%%s_det_%s_%%s.txt', 'test')) ;
-  dataOpts.VOCopts = VOCopts ;
-
-  % return to original directory
-  cd(currentDir) ;
+  % ignore images that do not reside in the classification & detection challenge
+  imdb.images.set(~imdb.images.classification) = -1 ;
+  VOCopts = configureVOC(expDir, opts.dataOpts.dataRoot, opts.year) ;
+  VOCopts.testset = opts.testset ;
+  opts.dataOpts.VOCopts = VOCopts ;
 
 % ---------------------------------------------------------------------------
 function displayPascalResults(modelName, aps, opts)
