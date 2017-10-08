@@ -142,5 +142,5 @@ function net = loadModel(opts)
     case 'dagnn' 
       net.mode = 'test' ; 
     case 'autonn'
-      out = Layer.fromDagNN(net, @rfcn_autonn_custom_fn) ; net = Net(out{:}) ;
+      out = Layer.fromDagNN(net, @extras_autonn_custom_fn) ; net = Net(out{:}) ;
   end

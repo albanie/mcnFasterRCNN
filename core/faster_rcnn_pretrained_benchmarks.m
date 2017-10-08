@@ -1,15 +1,23 @@
-% This script evaluates the pre-trained models released by Ross Girshick
+% This script evaluates a pre-trained models released by Ross Girshick, 
+% together with one trained with the matconvnet implementation
 
 % The evaluation is done on the VOC 2007 test data. 
 evalVersion = 'fast' ; % switch to `official` for submissions
 
+  %'faster-rcnn-vggvd-pascal', ...
+
 models = {...
-  'faster-rcnn-vggvd-pascal', ...
+  'faster-rcnn-mcn-vggvd-pascal', ...
 } ;
+
+testset = 'val' ;
 
 for i = 1:numel(models)
   model = models{i} ;
   faster_rcnn_pascal_evaluation('modelName', model, ...
-                                'evalVersion', evalVersion) ;
+                                'evalVersion', evalVersion, ...
+                                'year', 2012, ...
+                                'refreshCache', 1,  ...
+                                'testset', testset) ;
 end
 

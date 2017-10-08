@@ -183,7 +183,7 @@ function state = processDetections(net, imdb, params, opts, varargin)
     if ~isempty(sc), args = {batch, opts, sc} ; else, args = {batch, opts} ; end
     inputs = opts.modelOpts.get_eval_batch(imdb, args{:}) ;
 
-    if opts.prefetch
+    if opts.batchOpts.prefetch
       batchStart_ = t + (labindex - 1) + opts.batchOpts.batchSize ;
       batchEnd_ = min(t + 2*opts.batchOpts.batchSize - 1, numel(testIdx)) ;
       next = testIdx(batchStart_: numlabs : batchEnd_) ;
