@@ -30,15 +30,25 @@ function faster_rcnn_demo(varargin)
 %   `wrapper`:: 'dagnn'
 %    The matconvnet wrapper to be used (both dagnn and autonn are supported) 
 %
+%   `imPath` ::
+%    Path to an example image
+%
+%   `roiVar` :: 'rois'
+%    The name of the network variable containing the regions of interests 
+%    predicted by the RPN (this name can vary across different pretrained
+%    and imported networks, but is typically 'rois' or 'proposals')
+%
 % Copyright (C) 2017 Samuel Albanie
 % Licensed under The MIT License [see LICENSE.md for details]
 
   opts.modelPath = '' ;
+  opts.roiVar = 'rois' ;
   opts.scale = 600 ;
   opts.nmsThresh = 0.3 ;
   opts.confThresh = 0.8 ;
   opts.maxScale = 1000 ;
   opts.wrapper = 'dagnn' ;
+  opts.imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/000456.jpg') ;
   opts = vl_argparse(opts, varargin) ;
 
   % The network is trained to prediction occurences
@@ -69,19 +79,17 @@ function faster_rcnn_demo(varargin)
   net = loadModel(opts) ;
 
   % Load test image
-  imPath = fullfile(vl_rootnn, 'contrib/mcnFasterRCNN/misc/000456.jpg') ;
-  im = single(imread(imPath)) ;
+  im = single(imread(opts.imPath)) ;
 
-  % choose variables to track
-  clsIdx = net.getVarIndex('cls_prob') ;
-  bboxIdx = net.getVarIndex('bbox_pred') ;
-  roisIdx = net.getVarIndex('rois') ;
-
+  % choose variables to track if using dagnn
   if strcmp(opts.wrapper, 'dagnn')
+    clsIdx = net.getVarIndex('cls_prob') ;
+    bboxIdx = net.getVarIndex('bbox_pred') ;
+    roisIdx = net.getVarIndex(opts.roiVar) ;
     [net.vars([clsIdx bboxIdx roisIdx]).precious] = deal(true) ;
   end
 
-  % resize to meet the r-fcn size criteria
+  % resize to meet the faster-rcnn size criteria
   imsz = [size(im,1) size(im,2)] ; maxSc = opts.maxScale ; 
   factor = max(opts.scale ./ imsz) ; 
   if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
@@ -93,17 +101,22 @@ function faster_rcnn_demo(varargin)
 
   % set inputs
   sample = {'data', data, 'im_info', imInfo} ;
-  switch opts.wrapper
-    case 'dagnn', inputs = {sample} ; net.mode = 'test' ;
-    case 'autonn', inputs = {sample, 'test'} ;
-  end
+  net.meta.classes.name = classes ;
 
   % run network and retrieve results
-  net.eval(inputs{:}) ;
-
-  probs = squeeze(net.vars(clsIdx).value) ;
-  deltas = squeeze(net.vars(bboxIdx).value) ;
-  boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
+  switch opts.wrapper
+    case 'dagnn' 
+      net.eval(sample) ;
+      probs = squeeze(net.vars(clsIdx).value) ;
+      deltas = squeeze(net.vars(bboxIdx).value) ;
+      boxes = net.vars(roisIdx).value(2:end,:)' / imInfo(3) ;
+    case 'autonn'
+      net.eval(sample, 'test') ;
+      probs = squeeze(net.getValue('cls_prob')) ;
+      deltas = squeeze(net.getValue('bbox_pred')) ;
+      boxes = net.getValue('proposal') ;
+      boxes = boxes(2:end,:)' / imInfo(3) ;
+  end
 
   % Visualize results for one class at a time
   for i = 2:numel(classes)
@@ -137,10 +150,16 @@ function faster_rcnn_demo(varargin)
 % ----------------------------
 function net = loadModel(opts)
 % ----------------------------
-  net = load(opts.modelPath) ; net = dagnn.DagNN.loadobj(net) ;
-  switch opts.wrapper
-    case 'dagnn' 
-      net.mode = 'test' ; 
-    case 'autonn'
-      out = Layer.fromDagNN(net, @extras_autonn_custom_fn) ; net = Net(out{:}) ;
+  net = load(opts.modelPath) ; 
+  if ~isfield(net, 'forward') % dagnn loader
+    net = dagnn.DagNN.loadobj(net) ;
+    switch opts.wrapper
+      case 'dagnn' 
+        net.mode = 'test' ; 
+      case 'autonn'
+        out = Layer.fromDagNN(net, @extras_autonn_custom_fn) ; 
+        net = Net(out{:}) ;
+    end
+  else % load directly using autonn
+    net = Net(net) ;
   end
