@@ -41,6 +41,7 @@ function faster_rcnn_demo(varargin)
 % Copyright (C) 2017 Samuel Albanie
 % Licensed under The MIT License [see LICENSE.md for details]
 
+  opts.gpus = [] ;
   opts.modelPath = '' ;
   opts.roiVar = 'rois' ;
   opts.scale = 600 ;
