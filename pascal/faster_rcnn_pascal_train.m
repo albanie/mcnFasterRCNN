@@ -8,24 +8,24 @@ function faster_rcnn_pascal_train(varargin)
 %   FASTER_RCNN_PASCAL_TRAIN(..'name', value) accepts the following 
 %   options:
 %
-%   `gpus` :: []
-%    If provided, the gpu ids to be used for processing.
-%
 %   `pruneCheckpoints` :: true
 %    Determines whether intermediate training files should be cleared to save
 %    space after the training run has completed.
 %
-%   `nms` :: 'cpu'
+%   `nms` :: 'gpu'
 %    NMS can be run on either the gpu if the dependency has been installed
 %    (see README.md for details), or on the cpu (slower).
-%
-%   `architecture` :: 'vgg16'
-%    The trunk architecture used to initialise the model.
 %
 %   `confirmConfig` :: true 
 %    Ask the user to confirm the experimental settings before running the 
 %    experiment
 %
+%   `checkAgainstProto` :: false
+%    If available, will check all learning parameters against the prototxt
+%    of the original models released by Ross Girshick.  This can be useful
+%    during development, but should not be necessary for the standard 
+%    architectures which have been verified experimentally.
+
 % ----------------------------------------------------------------------
 %   `train` :: struct(...)
 %    A structure of options for training, with the following fields:
@@ -68,9 +68,18 @@ function faster_rcnn_pascal_train(varargin)
 % ----------------------------------------------------------------------
 %   `modelOpts` :: struct(...)
 %    A structure of options for the model, with the following fields:
+%
 %      `architecture` :: 'vgg16'
 %       The trunk architecture used to initialise the model.
 %
+%      `classAgnosticReg` :: false
+%       Whether to train a class agnostic bounding box regressor (in the style
+%       used by R-FCN, or per-class bounding box regressors (in the style of
+%       Faster R-CNN).
+%
+%      `roiBatchSize` :: 128
+%       The number or "regions-of-interest" sampled per batch during the 
+%       training of the RPN.
 %
 % Copyright (C) 2017 Samuel Albanie 
 % Licensed under The MIT License [see LICENSE.md for details]
@@ -78,11 +87,12 @@ function faster_rcnn_pascal_train(varargin)
   opts.debug = 0 ; 
   opts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
   opts.continue = 1 ;
-  opts.confirmConfig = 0 ;
+  opts.confirmConfig = false ;
   opts.pruneCheckpoints = true ;
+  opts.checkAgainstProto = false ;
 
   % configure training options
-  opts.train.gpus = 3 ;
+  opts.train.gpus = 2 ;
   opts.train.derOutputs = 1 ; % give each loss the same weight
   opts.train.batchSize = numel(opts.train.gpus) ;
   opts.train.numSubBatches = numel(opts.train.gpus) ;
@@ -122,9 +132,11 @@ function faster_rcnn_pascal_train(varargin)
   opts.modelOpts.batchNormalization = false ;
   opts.modelOpts.batchRenormalization = false ;
   opts.modelOpts.instanceNormalization = false ;
-  opts.modelOpts.CudnnWorkspaceLimit = 1024*1024*1204 ; % 1GB
-  opts.modelOpts.initMethod = 'gaussian' ;
+  opts.modelOpts.CudnnWorkspaceLimit = 512*1024*1204 ; % 1GB/512MB
   opts.modelOpts.freezeBnorm = 0 ;
+  opts.modelOpts.roiBatchSize = 128 ;
+  opts.modelOpts.initMethod = 'gaussian' ;
+  opts.modelOpts.classAgnosticReg = false ;
   opts = vl_argparse(opts, varargin) ;
 
   protoName = sprintf('%s_train.prototxt', opts.modelOpts.architecture) ;
@@ -164,7 +176,7 @@ function faster_rcnn_pascal_train(varargin)
 
   % configure batch opts
   batchOpts.scale = 600 ;
-  batchOpts.maxScale = 1000 ;
+  batchOpts.maxScale = 800 ; % cheaper and avoids memory crashes
   batchOpts.patchOpts.use = opts.dataOpts.patchAugmentation ;
   batchOpts.patchOpts.numTrials = 50 ;
   batchOpts.patchOpts.minPatchScale = 0.3 ;
@@ -229,3 +241,6 @@ function [opts, imdb] = prepareImdb(imdb, opts)
   if opts.dataOpts.useValForTraining
     opts.train.train = find(imdb.images.set == 2 | imdb.images.set == 1) ;
   end
+
+  %opts.train.train = repmat(2849, [1 5]) ; % debug
+  %opts.train.train = repmat(2848, [1 5]) ; % debug
