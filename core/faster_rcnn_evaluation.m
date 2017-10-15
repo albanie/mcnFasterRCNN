@@ -5,7 +5,7 @@ function results = faster_rcnn_evaluation(expDir, net, opts)
 %  EXPDIR.
 %
 % Copyright (C) 2017 Samuel Albanie 
-% All rights reserved.
+% Licensed under The MIT License [see LICENSE.md for details]
 
   % load/create imdb and configure
   if exist(opts.dataOpts.imdbPath, 'file')
@@ -45,8 +45,21 @@ function res = checkCache(opts, net, imdb, testIdx)
     fprintf('saving to %s\n', path) ; save(path, '-struct', 's', '-v7.3') ; 
     res = s.results ;
   end
+
+
 % -------------------------------------------------------------------------
-function decodedPreds = decodePredictions(p, imdb, testIdx, opts) 
+function decodedPreds = decodePredictions(predictions, imdb, testIdx, opts) 
+% -------------------------------------------------------------------------
+  args = {predictions, imdb, testIdx, opts} ;
+  switch opts.dataOpts.decoder 
+    % For debuggin/small datasets serial decoding is useful
+    case 'serial', decodedPreds = decodeSerial(args{:}) ;
+    case 'custom', decodedPreds = opts.dataOpts.customDecoder(args{:}) ;
+    otherwise, error('deocoder %s not recognised',opts.dataOpts.deocoder) ;
+  end
+
+% -------------------------------------------------------------------------
+function decodedPreds = decodeSerial(p, imdb, testIdx, opts) 
 % -------------------------------------------------------------------------
   numClasses = numel(imdb.meta.classes) ; 
   imageIds = cell(1, numClasses) ;
