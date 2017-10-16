@@ -1,7 +1,7 @@
 function net = compile_detector(rpn_out, det_out, meta, opts)
 
   if opts.checkAgainstProto
-    checkLearningParams(rpn_out.multitask_loss, det_out.multitask_loss, opts) ;
+    checkLearningParams({rpn_out.multitask_loss, det_out.multitask_loss}, opts) ;
   end
 
   if opts.modelOpts.mergeBnorm
