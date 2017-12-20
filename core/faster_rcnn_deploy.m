@@ -2,22 +2,22 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
 % FASTER_RCNN_DEPLOY deploys a FASTER_RCNN model for evaluation
 %   NET = FASTER_RCNN_DEPLOY(SRCPATH, DESTPATH) configures
 %   a Faster-RCNN model to perform evaluation.  This process involves
-%   removing the loss layers used during training and adding 
+%   removing the loss layers used during training and adding
 %   a combination of a transpose softmax with a detection
 %   layer to compute network predictions.
 %
-%   FASTER_RCNN_DEPLOY(..'name', value) accepts the following 
+%   FASTER_RCNN_DEPLOY(..'name', value) accepts the following
 %   options:
 %
 %   `toDagNN` :: true
-%    If true, the network is stored as a DagNN object, rather 
+%    If true, the network is stored as a DagNN object, rather
 %    than as an AutoNN object.
 %
 %   `precomputedBboxNormalization` :: true
 %    To ease the optimization, during learning bounding boxes are normalized
 %    according to a precomputed set of fixed means and standard deviations.
-%    If this option is true (indicating the normalization was used during 
-%    training), during deployment this process is undone and the regressors 
+%    If this option is true (indicating the normalization was used during
+%    training), during deployment this process is undone and the regressors
 %    are recalibrated to operate on proposals.
 %
 %   `normalizeMeans` :: [0, 0, 0, 0]
@@ -36,14 +36,14 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
 % Copyright (C) 2017 Samuel Albanie
 % Licensed under The MIT License [see LICENSE.md for details]
 
-  opts.toDagNN = true ;
+  opts.toDagNN = false ;
   opts.numClasses = 21 ;
   opts.normalizeMeans = [0, 0, 0, 0] ;
   opts.normalizeStdDevs = [0.1, 0.1, 0.2, 0.2] ;
   opts.precomputedBboxNormalization = true ;
   opts = vl_argparse(opts, varargin, 'nonrecursive') ;
 
-  tmp = load(srcPath) ; 
+  tmp = load(srcPath) ;
   out = Layer.fromCompiledNet(tmp.net) ; frcnn = out{2} ;
 
   % fix names from old config
@@ -71,8 +71,8 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
   % biases have shape (4*numClasses)x1, so operate along first dim
   bbox_pred.inputs{3}.value = bsxfun(@plus, bsxfun(@times, b, std), m) ;
 
-  % filters have shape (1,1,C,4*numClasses), so operate along last dim 
-  m_ = permute(m, [4 3 2 1]) ; std_ = permute(std, [4 3 2 1]) ; 
+  % filters have shape (1,1,C,4*numClasses), so operate along last dim
+  m_ = permute(m, [4 3 2 1]) ; std_ = permute(std, [4 3 2 1]) ;
   bbox_pred.inputs{2}.value = bsxfun(@plus, bsxfun(@times, f, std_), m_) ;
 
   % normalze to probabilities
@@ -83,12 +83,12 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
   outDir = fileparts(destPath) ;
   if ~exist(outDir, 'dir'), mkdir(outDir) ; end
 
-  net.meta.backgroundClass = 1 ; 
+  net.meta.backgroundClass = 1 ;
 
   % add standard imagenet average if not present
   if ~isfield(net.meta, 'normalization'), net.meta.normalization = struct() ; end
   if ~isfield(net.meta.normalization, 'averageImage')
-    rgb = [122.771, 115.9465, 102.9801] ; 
+    rgb = [122.771, 115.9465, 102.9801] ;
     net.meta.normalization.averageImage = permute(rgb, [3 1 2]) ;
   end
 
@@ -97,5 +97,5 @@ function net = faster_rcnn_deploy(srcPath, destPath, varargin)
     net = toDagNN(net, customDagObj) ;
   end
 
-  net = net.saveobj() ; 
+  net = net.saveobj() ;
   save(destPath, '-struct', 'net') ;

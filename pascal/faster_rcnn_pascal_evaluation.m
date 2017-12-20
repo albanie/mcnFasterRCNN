@@ -85,6 +85,7 @@ function aps = faster_rcnn_pascal_evaluation(varargin)
   opts.dataOpts.eval_func = @pascal_eval_func ;
   opts.dataOpts.evalVersion = opts.evalVersion ;
   opts.dataOpts.displayResults = @displayPascalResults ;
+  opts.dataOpts.decoder = 'serial' ;
   opts.dataOpts.configureImdbOpts = @configureImdbOpts ;
   opts.dataOpts.imdbPath = fullfile(vl_rootnn, ...
                                     'data/pascal/standard_imdb/imdb.mat') ;

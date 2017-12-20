@@ -1,4 +1,4 @@
-function faster_rcnn_train(expDir, opts, varargin) 
+function faster_rcnn_train(expDir, opts, varargin)
 %FASTER_RCNN_TRAIN train a Faster R-CNN network end to end
 
   % load imdb
@@ -41,4 +41,4 @@ function [net, modelName] = deployModel(expDir, opts)
     stored = Layer.fromDagNN(dag, @faster_rcnn_autonn_custom_fn) ;
   end
   net = Net(stored) ;
-  [~,modelName,~] = fileparts(expDir) ; 
+  [~,modelName,~] = fileparts(expDir) ;

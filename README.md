@@ -16,8 +16,11 @@ This code is based on the `py-caffe` implementation
 [Fast R-CNN implementation](https://github.com/vlfeat/matconvnet/tree/master/examples/fast_rcnn) by 
 [Hakan Bilen](http://www.robots.ox.ac.uk/~hbilen).
 
-The pre-trained models released with the caffe code which have been imported into matconvnet and 
-can be downloaded [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models), together with models trained directly with this code.  Alternatively, you can train your own detector.
+The pre-trained models released with the caffe code which have been imported 
+into matconvnet and can be downloaded
+[here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models),
+together with models trained directly with this code.  Alternatively, you can 
+train your own detector.
 
 ### Demo
 
@@ -32,11 +35,12 @@ There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets 
 
 ### Dependencies
 
-Faster-RCNN requires the following three modules:
+Faster-RCNN requires the following modules:
 
-* [autonn](https://github.com/vlfeat/autonn) - automatic differenation
+* [autonn](https://github.com/vlfeat/autonn) - automatic differentiation
 * [mcnExtraLayers](https://github.com/albanie/mcnExtraLayers) - extra MatConvNet layers
-* [GPU NMS](https://github.com/albanie/mcnNMS) - a CUDA-based implementation of non-maximum supression
+* [mcnDatasets](https://github.com/albanie/mcnDatasets) - dataset handlers
+* [GPU NMS](https://github.com/albanie/mcnNMS) - a CUDA-based implementation of non-maximum suppression
 
 If you wish to provide more extensive data augmentation, the following module is required (it can also be installed with `vl_contrib`):
 
@@ -46,10 +50,9 @@ The effect of the CUDA NMS module is discussed below.
 
 ### Installation
 
-The easiest way to use this module is to install it with the `vl_contrib` 
-package manager. `mcnFasterRCNN` can be installed with 
-the following commands from the root directory of your MatConvNet 
-installation:
+The easiest way to use this module is to install it with the `vl_contrib`
+package manager. `mcnFasterRCNN` can be installed with the following commands
+rom the root directory of your MatConvNet installation:
 
 ```
 vl_contrib('install', 'mcnFasterRCNN') ;

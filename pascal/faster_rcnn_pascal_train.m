@@ -1,11 +1,11 @@
 function faster_rcnn_pascal_train(varargin)
-%FASTER_RCNN_PASCAL_TRAIN Train a Faster R-CNN detector on pascal 
+%FASTER_RCNN_PASCAL_TRAIN Train a Faster R-CNN detector on pascal
 %   FASTER_RCNN_PASCAL_TRAIN performs a full training run of a Faster R-CNN
 %   detector on the Pascal VOC dataset. A number of options and settings are
-%   provided for training.  The defaults should reproduce the experiment 
+%   provided for training.  The defaults should reproduce the experiment
 %   described in the original Faster R-CNN paper (linked in README.md).
 %
-%   FASTER_RCNN_PASCAL_TRAIN(..'name', value) accepts the following 
+%   FASTER_RCNN_PASCAL_TRAIN(..'name', value) accepts the following
 %   options:
 %
 %   `pruneCheckpoints` :: true
@@ -16,14 +16,14 @@ function faster_rcnn_pascal_train(varargin)
 %    NMS can be run on either the gpu if the dependency has been installed
 %    (see README.md for details), or on the cpu (slower).
 %
-%   `confirmConfig` :: true 
-%    Ask the user to confirm the experimental settings before running the 
+%   `confirmConfig` :: true
+%    Ask the user to confirm the experimental settings before running the
 %    experiment
 %
 %   `checkAgainstProto` :: false
 %    If available, will check all learning parameters against the prototxt
 %    of the original models released by Ross Girshick.  This can be useful
-%    during development, but should not be necessary for the standard 
+%    during development, but should not be necessary for the standard
 %    architectures which have been verified experimentally.
 
 % ----------------------------------------------------------------------
@@ -33,10 +33,10 @@ function faster_rcnn_pascal_train(varargin)
 %      `gpus` :: 1
 %       If provided, the gpu ids to be used for processing.
 %
-%      `batchSize` :: 1 
+%      `batchSize` :: 1
 %       Number of images per batch during training.
 %
-%      `continue` :: true 
+%      `continue` :: true
 %       Resume training from previous checkpoint.
 %
 % ----------------------------------------------------------------------
@@ -47,22 +47,22 @@ function faster_rcnn_pascal_train(varargin)
 %       The path to the directory containing the Pascal VOC data data
 %
 %      `useValForTraining` :: true
-%       Whether the validation set (as defined in the original challenge) 
+%       Whether the validation set (as defined in the original challenge)
 %       should be included in the training set.
 %
-%      `zoomScale` :: 2 
+%      `zoomScale` :: 2
 %       Zoom magnitude used by SSD-style data augmentation
 %
 %      `flipAugmentation` :: true
 %       Whether flipped images should be used in the training procedure.
 %
-%      `zoomAugmentation` :: false 
+%      `zoomAugmentation` :: false
 %       Use "zoom" augmentation to improve performance (but longer training)
 %
-%      `patchAugmentation` :: false 
+%      `patchAugmentation` :: false
 %       Use SSD-style "patch" augmentation to improve performance
 %
-%      `distortAugmentation` :: false 
+%      `distortAugmentation` :: false
 %       Use SSD-style "distortion" augmentation to improve performance
 %
 % ----------------------------------------------------------------------
@@ -78,13 +78,13 @@ function faster_rcnn_pascal_train(varargin)
 %       Faster R-CNN).
 %
 %      `roiBatchSize` :: 128
-%       The number or "regions-of-interest" sampled per batch during the 
+%       The number or "regions-of-interest" sampled per batch during the
 %       training of the RPN.
 %
-% Copyright (C) 2017 Samuel Albanie 
+% Copyright (C) 2017 Samuel Albanie
 % Licensed under The MIT License [see LICENSE.md for details]
 
-  opts.debug = 0 ; 
+  opts.debug = 0 ;
   opts.nms = 'gpu' ; % set to CPU if mcnNMS module is not installed
   opts.continue = 1 ;
   opts.confirmConfig = false ;
@@ -103,21 +103,21 @@ function faster_rcnn_pascal_train(varargin)
 
   % configure dataset options
   opts.dataOpts.name = 'pascal' ;
-  opts.dataOpts.trainData = '07' ; 
+  opts.dataOpts.trainData = '07' ;
   opts.dataOpts.testData = '07' ;
   opts.dataOpts.flipAugmentation = true ;
   opts.dataOpts.zoomAugmentation = false ;
   opts.dataOpts.patchAugmentation = false ;
   opts.dataOpts.distortAugmentation = false ;
   opts.dataOpts.useValForTraining = true ;
-  opts.dataOpts.getImdb = @getPascalImdb ;
+  opts.dataOpts.getImdb = @getCombinedPascalImdb ; %@getPascalImdb ;
   opts.dataOpts.prepareImdb = @prepareImdb ;
   opts.dataOpts.dataRoot = fullfile(vl_rootnn, 'data', 'datasets') ;
   opts.dataOpts.zoomScale = 2 ;
 
   % configure model options
   opts.modelOpts.type = 'faster-rcnn' ;
-  opts.modelOpts.nms = opts.nms ; 
+  opts.modelOpts.nms = opts.nms ;
   opts.modelOpts.locWeight = 1 ;
   opts.modelOpts.numClasses = 21 ;
   opts.modelOpts.featStride = 16 ;
@@ -152,11 +152,11 @@ function faster_rcnn_pascal_train(varargin)
 
   % Set learning rates
   steadyLR = 0.001 ;
-  gentleLR = 0.0001 ; 
+  gentleLR = 0.0001 ;
   vGentleLR = 0.00001 ;
 
-  if ~opts.dataOpts.zoomAugmentation 
-    % this should correspond (approximately) to the 70,000 iterations 
+  if ~opts.dataOpts.zoomAugmentation
+    % this should correspond (approximately) to the 70,000 iterations
     % used in the original model (when zoom aug is not used)
     numSteadyEpochs = 10 ;
     numGentleEpochs = 4 ;
@@ -205,7 +205,7 @@ function faster_rcnn_pascal_train(varargin)
   batchOpts.debug = opts.debug ;
 
   batchOpts.numThreads = 2 ;
-  batchOpts.prefetch = true ; 
+  batchOpts.prefetch = true ;
   batchOpts.useGpu = numel(opts.train.gpus) >  0 ;
   batchOpts.resizers = {'bilinear', 'box', 'nearest', 'bicubic', 'lanczos2'} ;
 
@@ -214,7 +214,7 @@ function faster_rcnn_pascal_train(varargin)
   if opts.debug, expName = [expName '-debug'] ; end
   expDir = fullfile(vl_rootnn, 'data', opts.dataOpts.name, expName) ;
   imdbTail = fullfile(opts.dataOpts.name, '/standard_imdb/imdb.mat') ;
-  opts.dataOpts.imdbPath = fullfile(vl_rootnn, 'data', imdbTail);
+  opts.dataOpts.imdbPath = fullfile(vl_rootnn, 'data', imdbTail) ;
   modelName = sprintf('local-%s-%s-%%d.mat', opts.modelOpts.type, ...
                                                    opts.dataOpts.name) ;
   opts.modelOpts.deployPath = fullfile(expDir, 'deployed', modelName) ;
@@ -222,13 +222,12 @@ function faster_rcnn_pascal_train(varargin)
   % configure meta options
   opts.batchOpts = batchOpts ;
   opts.eval_func = @faster_rcnn_pascal_evaluation ;
-
   faster_rcnn_train(expDir, opts) ;
 
 % ---------------------------------------------------
 function [opts, imdb] = prepareImdb(imdb, opts)
 % ---------------------------------------------------
-% set path to VOC 2007 devkit directory 
+% set path to VOC 2007 devkit directory
 
   switch opts.dataOpts.trainData
     case '07', imdb.images.set(imdb.images.year == 2012) = -1 ;
@@ -241,6 +240,3 @@ function [opts, imdb] = prepareImdb(imdb, opts)
   if opts.dataOpts.useValForTraining
     opts.train.train = find(imdb.images.set == 2 | imdb.images.set == 1) ;
   end
-
-  %opts.train.train = repmat(2849, [1 5]) ; % debug
-  %opts.train.train = repmat(2848, [1 5]) ; % debug
