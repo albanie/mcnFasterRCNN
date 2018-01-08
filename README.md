@@ -18,7 +18,7 @@ This code is based on the `py-caffe` implementation
 
 The pre-trained models released with the caffe code which have been imported 
 into matconvnet and can be downloaded
-[here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models),
+[here](http://www.robots.ox.ac.uk/~albanie/mcn-models.html#faster-rcnn-models),
 together with models trained directly with this code.  Alternatively, you can 
 train your own detector.
 
@@ -30,7 +30,7 @@ Running the `faster_rcnn_demo.m` script will download a model trained on pascal 
 
 ### Functionality
 
-There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models)).  Training code is also provided to reproudce the `pascal voc` experiments described in the paper.  In addition, there is the option to train with "SSD-style" zoom augmentation to the improve performance of the model beyond the original baseline.
+There are scripts to evaluate models on the `pascal voc` and `ms coco` datasets (the scores produced by the pretrained models are listed on the [model page](http://www.robots.ox.ac.uk/~albanie/mcn-models.html#faster-rcnn-models)).  Training code is also provided to reproudce the `pascal voc` experiments described in the paper.  In addition, there is the option to train with "SSD-style" zoom augmentation to the improve performance of the model beyond the original baseline.
 
 
 ### Dependencies
@@ -63,7 +63,7 @@ vl_contrib('test', 'mcnFasterRCNN') ; % optional
 
 ### Accuracy
 
-A comparison of the mean AP of the trained detectors is given [here](http://www.robots.ox.ac.uk/~albanie/models.html#faster-rcnn-models).   The following numbers were obtained from a single run of both implementations (there may be some variance if repeated):
+A comparison of the mean AP of the trained detectors is given [here](http://www.robots.ox.ac.uk/~albanie/mcn-models.html#faster-rcnn-models).   The following numbers were obtained from a single run of both implementations (there may be some variance if repeated):
 
 | training code | voc 07 test mAP |  
 |---------------|-----------------|
