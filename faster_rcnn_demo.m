@@ -10,31 +10,31 @@ function faster_rcnn_demo(varargin)
 %    will be downloaded.
 %
 %   `gpus`:: []
-%    Device on which to run network
+%    Device on which to run network 
 %
 %   `scale`:: 600
-%    The minimum size (in pixels) to which the shorter image length will be
+%    The minimum size (in pixels) to which the shorter image length will be 
 %    resized while preserving aspect ratio
 %
 %   `maxScale`:: 1000
-%    The maximum size (in pixels) to which the longer image length will be
+%    The maximum size (in pixels) to which the longer image length will be 
 %    resized while preserving aspect ratio
 %
 %   `confThresh`:: 0.8
-%    The confidence threshold used to determine whether a prediction is
+%    The confidence threshold used to determine whether a prediction is 
 %    considered a detection
 %
 %   `nmsThresh`:: 0.3
 %    The threshold used to perform non-maximum supression
 %
 %   `wrapper`:: 'dagnn'
-%    The matconvnet wrapper to be used (both dagnn and autonn are supported)
+%    The matconvnet wrapper to be used (both dagnn and autonn are supported) 
 %
 %   `imPath` ::
 %    Path to an example image
 %
 %   `roiVar` :: 'rois'
-%    The name of the network variable containing the regions of interests
+%    The name of the network variable containing the regions of interests 
 %    predicted by the RPN (this name can vary across different pretrained
 %    and imported networks, but is typically 'rois' or 'proposals')
 %
@@ -70,7 +70,7 @@ function faster_rcnn_demo(varargin)
     fprintf('Downloading the Faster R-CNN model ... this may take a while\n') ;
     opts.modelPath = fullfile(vl_rootnn, 'data/models-import', modelName) ;
     mkdir(fileparts(opts.modelPath)) ; base = 'http://www.robots.ox.ac.uk' ;
-    url = sprintf('%s/~albanie/mcn-models/faster/%s', base, modelName) ;
+    url = sprintf('%s/~albanie/models/faster/%s', base, modelName) ;
     urlwrite(url, opts.modelPath) ;
   else
     opts.modelPath = paths{ok} ;
@@ -91,13 +91,13 @@ function faster_rcnn_demo(varargin)
   end
 
   % resize to meet the faster-rcnn size criteria
-  imsz = [size(im,1) size(im,2)] ; maxSc = opts.maxScale ;
-  factor = max(opts.scale ./ imsz) ;
+  imsz = [size(im,1) size(im,2)] ; maxSc = opts.maxScale ; 
+  factor = max(opts.scale ./ imsz) ; 
   if any((imsz * factor) > maxSc), factor = min(maxSc ./ imsz) ; end
   newSz = factor .* imsz ; imInfo = [ round(newSz) factor ] ;
 
   % resize and subtract mean
-  data = imresize(im, factor, 'bilinear') ;
+  data = imresize(im, factor, 'bilinear') ; 
   data = bsxfun(@minus, data, net.meta.normalization.averageImage) ;
 
   % set inputs
@@ -106,7 +106,7 @@ function faster_rcnn_demo(varargin)
 
   % run network and retrieve results
   switch opts.wrapper
-    case 'dagnn'
+    case 'dagnn' 
       net.eval(sample) ;
       probs = squeeze(net.vars(clsIdx).value) ;
       deltas = squeeze(net.vars(bboxIdx).value) ;
@@ -151,14 +151,14 @@ function faster_rcnn_demo(varargin)
 % ----------------------------
 function net = loadModel(opts)
 % ----------------------------
-  net = load(opts.modelPath) ;
+  net = load(opts.modelPath) ; 
   if ~isfield(net, 'forward') % dagnn loader
     net = dagnn.DagNN.loadobj(net) ;
     switch opts.wrapper
-      case 'dagnn'
-        net.mode = 'test' ;
+      case 'dagnn' 
+        net.mode = 'test' ; 
       case 'autonn'
-        out = Layer.fromDagNN(net, @extras_autonn_custom_fn) ;
+        out = Layer.fromDagNN(net, @extras_autonn_custom_fn) ; 
         net = Net(out{:}) ;
     end
   else % load directly using autonn

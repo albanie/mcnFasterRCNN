@@ -2,7 +2,7 @@ function faster_rcnn_coco_demo(varargin)
 %FASTER_RCNN_COCO_DEMO detector using the autonn wrapper
 % NOTE: This code assumes that the coco dataset has been downloaded
 %
-% Copyright (C) 2017 Samuel Albanie
+% Copyright (C) 2017 Samuel Albanie 
 % All rights reserved.
 
   opts.scale = 600 ;
@@ -27,7 +27,7 @@ function faster_rcnn_coco_demo(varargin)
     fprintf('Downloading the Faster R-CNN model ... this may take a while\n') ;
     opts.modelPath = fullfile(vl_rootnn, 'data/models-import', modelName) ;
     mkdir(fileparts(opts.modelPath)) ; base = 'http://www.robots.ox.ac.uk' ;
-    url = sprintf('%s/~albanie/mcn-models/faster/%s', base, modelName) ;
+    url = sprintf('%s/~albanie/models/faster/%s', base, modelName) ;
     urlwrite(url, opts.modelPath) ;
   else
     opts.modelPath = paths{ok} ;
