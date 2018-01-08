@@ -1,10 +1,10 @@
 function net = faster_rcnn_zoo(modelName)
 %FASTER_RCNN_ZOO - load detector by name
-%  FASTER_RCNN_ZOO(MODELNAME) - loads a detector by its given name. 
+%  FASTER_RCNN_ZOO(MODELNAME) - loads a detector by its given name.
 %  If it cannot be found on disk, it will be downloaded via the world
 %  wide web.
 %
-% Copyright (C) 2017 Samuel Albanie 
+% Copyright (C) 2017 Samuel Albanie
 % Licensed under The MIT License [see LICENSE.md for details]
 
   modelNames = {
@@ -34,7 +34,7 @@ function fetchModel(modelName, modelPath)
       case 'y'
         if ~exist(fileparts(modelPath), 'dir'), mkdir(fileparts(modelPath)) ; end
         fprintf(sprintf('Downloading %s ... \n', modelName)) ;
-        baseUrl = 'http://www.robots.ox.ac.uk/~albanie/models/faster' ;
+        baseUrl = 'http://www.robots.ox.ac.uk/~albanie/mcn-models/faster' ;
         url = sprintf('%s/%s.mat', baseUrl, modelName) ;
         urlwrite(url, modelPath) ;
         return ;
