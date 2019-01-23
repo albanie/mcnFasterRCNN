@@ -1,6 +1,8 @@
 Faster R-CNN
 ---
 
+**NOTICE: This repo is no longer maintained.  For an easy-to-use object detector that is actively maintained, I recommend considering the PyTorch Mask R-CNN [implementation](https://github.com/facebookresearch/maskrcnn-benchmark).**
+
 This directory contains code to evaluate the Faster R-CNN object detector 
 described in the paper:
 
